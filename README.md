@@ -1,2 +1,2 @@
 # weshin
-A WeChat OpenAPI wrapper
+A WeChat openAPI wrapper
