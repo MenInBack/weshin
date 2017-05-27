@@ -1,7 +1,5 @@
 package wx
 
-import ()
-
 var State = ""
 
 var WXConfig struct {

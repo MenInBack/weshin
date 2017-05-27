@@ -35,7 +35,7 @@ func JumpToAuth(scope string) (jumpURL string, err error) {
 	return u.String(), nil
 }
 
-func AuthorizeCode(code string, timeout int) (token *AccessToken, err error) {
+func GrantAccessToken(code string, timeout int) (token *AccessToken, err error) {
 	log.Print("authorizing code: ", code)
 
 	if len(WXConfig.APPID) <= 0 {
@@ -49,7 +49,7 @@ func AuthorizeCode(code string, timeout int) (token *AccessToken, err error) {
 	}
 
 	req := httpClient{
-		Path:    authorizeCodeReqURI,
+		Path:    accessTokenURI,
 		Timeout: timeout,
 		Parameters: []queryParameter{
 			{"appid", WXConfig.APPID},
@@ -73,7 +73,7 @@ func RefreshToken(refreshToken string, timeout int) (token *AccessToken, err err
 		return nil, ConfigError{InvalidConfig: "appID"}
 	}
 	if len(refreshToken) <= 0 {
-		return nil, ParameterError{InvalidParameter: "refreshToken"}
+		return nil, ParameterError{InvalidParameter: "refresh token"}
 	}
 
 	req := httpClient{
@@ -94,4 +94,32 @@ func RefreshToken(refreshToken string, timeout int) (token *AccessToken, err err
 	}
 
 	return token, err
+}
+
+func GetUserInfo(token, openID, lang string, timeout int) (info *UserInfo, err error) {
+	if len(token) <= 0 {
+		return nil, ParameterError{InvalidParameter: "access token"}
+	}
+	if len(openID) <= 0 {
+		return nil, ParameterError{InvalidParameter: "openID"}
+	}
+
+	req := httpClient{
+		Path:    userInfoURI,
+		Timeout: timeout,
+		Parameters: []queryParameter{
+			{"access_token", token},
+			{"openid", openID},
+			{"lang", lang},
+		},
+	}
+
+	info = new(UserInfo)
+	err = req.Get(info)
+	if err != nil {
+		log.Print("query user info failed: ", err)
+		return nil, err
+	}
+
+	return info, err
 }

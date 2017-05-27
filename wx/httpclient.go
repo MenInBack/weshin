@@ -50,14 +50,11 @@ func (c *httpClient) prepare() error {
 
 	var q bytes.Buffer
 	for i, p := range c.Parameters {
-		if i == 1 {
-			q.WriteString(p.key)
-			q.WriteString("=?")
-		} else {
+		if i > 0 {
 			q.WriteString("&")
-			q.WriteString(p.key)
-			q.WriteString("=?")
 		}
+		q.WriteString(p.key)
+		q.WriteString("=")
 		q.WriteString(p.value)
 	}
 
@@ -75,6 +72,7 @@ func (c *httpClient) request(value interface{}) error {
 			return defaultTimeout * time.Second
 		}(),
 	}
+	log.Print("req: ", c.req)
 
 	resp, err := client.Do(c.req)
 	if err != nil {
