@@ -13,26 +13,26 @@ const (
 	defaultTimeout = 10
 )
 
-type httpClient struct {
+type HttpClient struct {
 	Path       string
-	Parameters []queryParameter
+	Parameters []QueryParameter
 	Timeout    int
 	req        *http.Request
 }
 
-type queryParameter struct {
-	key   string
-	value string
+type QueryParameter struct {
+	Key   string
+	Value string
 }
 
-func (c httpClient) Get(value interface{}) error {
+func (c HttpClient) Get(Value interface{}) error {
 	err := c.prepare()
 	if err != nil {
 		log.Print("prepare http request failed: ", err)
 		return err
 	}
 
-	err = c.request(value)
+	err = c.request(Value)
 	if err != nil {
 		log.Print("http request failed: ", err)
 		return err
@@ -41,7 +41,7 @@ func (c httpClient) Get(value interface{}) error {
 	return nil
 }
 
-func (c *httpClient) prepare() error {
+func (c *HttpClient) prepare() error {
 	req, err := http.NewRequest("GET", c.Path, nil)
 	if err != nil {
 		log.Fatal("http.NewRequest error: ", err)
@@ -53,9 +53,9 @@ func (c *httpClient) prepare() error {
 		if i > 0 {
 			q.WriteString("&")
 		}
-		q.WriteString(p.key)
+		q.WriteString(p.Key)
 		q.WriteString("=")
-		q.WriteString(p.value)
+		q.WriteString(p.Value)
 	}
 
 	req.URL.RawQuery = q.String()
@@ -63,7 +63,7 @@ func (c *httpClient) prepare() error {
 	return nil
 }
 
-func (c *httpClient) request(value interface{}) error {
+func (c *HttpClient) request(Value interface{}) error {
 	client := http.Client{
 		Timeout: func() time.Duration {
 			if c.Timeout > 0 {
@@ -101,7 +101,7 @@ func (c *httpClient) request(value interface{}) error {
 		return err
 	}
 
-	err = json.Unmarshal(data, value)
+	err = json.Unmarshal(data, Value)
 	if err != nil {
 		log.Print("unmarshal response body error: ", err)
 		return err

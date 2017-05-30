@@ -1,43 +1,18 @@
 package wx
 
-var State = ""
-
-var WXConfig struct {
+type WXConfig struct {
 	APPID            string
 	Secret           string
 	OAuthRedirectURI string
 	State            string
 }
 
-type GrantTokenResp struct {
-	AccessToken string `json:"access_token"`
-	ExpiresIn   int32  `json:"expires_in"`
-}
-
-type OAuthResp struct {
-	Code  string
-	State string
-}
-
-type AuthorizeCodeReq struct {
-	APPID     string
-	Secret    string
-	Code      string
-	grantType string
-}
-
-type AccessToken struct {
+type UserAccessToken struct {
 	AccessToken  string `json:"access_token"`
 	ExpiresIn    int    `json:"expires_in"`
 	RefreshToken string `json:"refresh_token"`
 	OpenID       string `json:"openid"`
 	Scope        string `json:"scope"`
-}
-
-type RefreshTokenReq struct {
-	APPID        string
-	RefreshToken string
-	grantType    string
 }
 
 type UserInfo struct {
@@ -50,4 +25,9 @@ type UserInfo struct {
 	HeadImgURL string   `json:"headimgurl"`
 	Privilege  []string `json:"privilege"`
 	UnionID    string   `json:"unionid"`
+}
+
+type MPAccessToken struct {
+	AccessToken string `json:"access_token"`
+	ExpiresIn   int    `json:"expires_in"`
 }
