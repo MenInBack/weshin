@@ -18,7 +18,7 @@ type UserAccessToken struct {
 type UserInfo struct {
 	OpenID     string   `json:"openid"`
 	Nickname   string   `json:"nickname"`
-	Sex        string   `json:"sex"`
+	Sex        int      `json:"sex"`
 	Province   string   `json:"province"`
 	City       string   `json:"city"`
 	Country    string   `json:"country"`

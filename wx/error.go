@@ -24,7 +24,10 @@ func handleRespError(data []byte) error {
 		log.Print("unmarshal response data to WechatError error: ", err)
 		return nil
 	}
-	return err
+	if err.ErrCode != 0 {
+		return err
+	}
+	return nil
 }
 
 type HttpError struct {
