@@ -5,8 +5,14 @@ import (
 )
 
 type TokenStorage interface {
-	Set(token wx.MPAccessToken) error
+	Set(token *wx.MPAccessToken) error
 	Get() (token *wx.MPAccessToken, err error)
+}
+
+// UseStorage sets custom storage for access token,
+// should be called during init() in custom code
+func UseStorage(s TokenStorage) {
+	tokenStorage = s
 }
 
 type defaultStorage struct {
@@ -15,6 +21,7 @@ type defaultStorage struct {
 
 func (s *defaultStorage) Set(token *wx.MPAccessToken) error {
 	s.token = token
+	return nil
 }
 
 func (s *defaultStorage) Get() (token *wx.MPAccessToken, err error) {
@@ -26,10 +33,8 @@ func (s *defaultStorage) Get() (token *wx.MPAccessToken, err error) {
 
 var tokenStorage TokenStorage
 
+// use defaultStorage by default
 func init() {
-	tokenStorage = defaultStorage{}
-}
-
-func UseStorage(s TokenStorage) {
-	tokenStorage = s
+	var s defaultStorage
+	tokenStorage = &s
 }
