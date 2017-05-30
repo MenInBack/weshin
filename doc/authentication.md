@@ -1,34 +1,38 @@
-针对微信公众号授权流程，`weshin` 对应 api 层，封装获取用户信息的过程。
+微信公众号网页授权流程， weshin 层封装获取用户信息的过程。
 
 ```mermaid
 sequenceDiagram
 	participant user
 	participant web
-	participant api
-	participant weixin
+	participant weshin
+	participant wechat
 	
-	user ->> web: 用户访问公众号页面(openid)
-	web ->> api: 请求用户信息
+	user ->> web: 用户访问公众号页面
+	
+	web ->> web: 查询用户信息
 	opt 已有用户信息
-      api ->> web: 返回用户信息
-      web ->> user: 业务服务
+      web ->> user: web服务
 	end
 	
-	api ->> web: 授权跳转链接(jumpUrl)
+	web ->> weshin: 发起网页授权
+	weshin ->> web: 授权跳转链接(jumpUrl)
 	web -->> user: 引导页面跳转
-	user ->> weixin: 跳转授权页面
-	note over weixin: 用户授权
-	weixin -->> user: 跳转回调页面
-	user ->> api: 跳转 jumpUrl(code)
-	api ->> weixin: 请求token (code|appID|secret)
-	note over api: 存储 token
-	weixin ->> api: access_token|refresh_token
-	api ->> weixin: 请求用户信息(access_token)
-	weixin ->> api: 用户信息
-	note over api: 存储用户信息
-	api ->> web: 用户信息
-	web ->> user: 业务服务
-	
-	
+	user ->> wechat: 跳转授权页面
+	note over wechat: 用户授权
+	wechat -->> user: 跳转回调页面
+	user ->> web: 跳转 redirect_uri(code)
+	web ->> weshin: 请求用户信息(code)
+	weshin ->> wechat: 请求token (code|appID|secret)
+	wechat ->> weshin: access_token|refresh_token
+	opt optional
+        note over weshin: 存储 token
+    end
+	weshin ->> wechat: 请求用户信息(access_token)
+	wechat ->> weshin: 用户信息
+    opt optional
+        note over weshin: 存储用户信息
+    end
+	weshin ->> web: 用户信息
+	web ->> user: web服务	
 ```
 
