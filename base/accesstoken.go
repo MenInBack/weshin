@@ -14,12 +14,12 @@ const (
 	accessTokenPath = "https://api.weixin.qq.com/cgi-bin/token"
 )
 
-var WXConfig wx.WXConfig
+var WXConfig wx.Config
 
 // GrantAccessToken for wechat mp
 // https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=APPID&secret=APPSECRET
 func GrantAccessToken(timeout int) (token *wx.MPAccessToken, err error) {
-	if len(WXConfig.APPID) <= 0 {
+	if len(WXConfig.AppID) <= 0 {
 		return nil, wx.ConfigError{InvalidConfig: "appID"}
 	}
 	if len(WXConfig.Secret) <= 0 {
@@ -31,7 +31,7 @@ func GrantAccessToken(timeout int) (token *wx.MPAccessToken, err error) {
 		Timeout: timeout,
 		Parameters: []wx.QueryParameter{
 			{"grant_type", wx.GrantTypeCredential},
-			{"appid", WXConfig.APPID},
+			{"appid", WXConfig.AppID},
 			{"secret", WXConfig.Secret},
 		},
 	}

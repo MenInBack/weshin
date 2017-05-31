@@ -9,9 +9,11 @@ type TokenStorage interface {
 	Get() (token *wx.MPAccessToken, err error)
 }
 
-// UseStorage sets custom storage for access token,
-// should be called during init() in custom code
-func UseStorage(s TokenStorage) {
+var tokenStorage = newTokenStorage()
+
+// UseCustomStorage sets custom storage for access token,
+// should be called on begging of custom code.
+func UseCustomStorage(s TokenStorage) {
 	tokenStorage = s
 }
 
@@ -31,10 +33,6 @@ func (s *defaultStorage) Get() (token *wx.MPAccessToken, err error) {
 	return s.token, nil
 }
 
-var tokenStorage TokenStorage
-
-// use defaultStorage by default
-func init() {
-	var s defaultStorage
-	tokenStorage = &s
+func newTokenStorage() TokenStorage {
+	return new(defaultStorage)
 }

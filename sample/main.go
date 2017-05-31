@@ -16,8 +16,8 @@ const (
 )
 
 func init() {
-	userauthorize.WXConfig = wx.WXConfig{
-		APPID:  "YourAPPID",
+	userauthorize.WXConfig = wx.Config{
+		AppID:  "YourAppID",
 		Secret: "YourSecret",
 	}
 }

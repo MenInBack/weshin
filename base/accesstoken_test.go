@@ -7,11 +7,8 @@ import (
 )
 
 func init() {
-	WXConfig.APPID = "YourAPPID"
+	WXConfig.AppID = "YourAppID"
 	WXConfig.Secret = "YourSecret"
-
-	grantedToken := "GrantedToken"
-	someOpenID := "SomeOpenID"
 }
 
 func TestAccessToken(t *testing.T) {
@@ -22,8 +19,9 @@ func TestAccessToken(t *testing.T) {
 	log.Print("got access token: ", token)
 }
 
-// CcQ13AaEriT-ZgK4idPiVThNILT9IspW0uc4S4C331SK3PNRvDVOMc35cSvOh-5YnVM8Plk4Tj1hC8Fi0NxIo9H5AT5w2Dhoa3Lc-7fIx69or1aDiIo87gRcg0nwauDDWFMfAAACLS
 func TestTokenStorage(t *testing.T) {
+	grantedToken := "GrantedToken"
+
 	err := tokenStorage.Set(&wx.MPAccessToken{
 		AccessToken: grantedToken,
 		ExpiresIn:   7200,
@@ -48,6 +46,8 @@ func TestTokenStorage(t *testing.T) {
 }
 
 func TestGetUserInfo(t *testing.T) {
+	grantedToken := "GrantedToken"
+
 	err := tokenStorage.Set(&wx.MPAccessToken{
 		AccessToken: grantedToken,
 		ExpiresIn:   7200,
@@ -56,6 +56,7 @@ func TestGetUserInfo(t *testing.T) {
 		t.Error("set failed: ", err)
 	}
 
+	someOpenID := "someOpenID"
 	info, err := GetUserInfo(someOpenID, wx.LangCN, 0)
 	if err != nil {
 		t.Error("get userinfo failed: ", err)

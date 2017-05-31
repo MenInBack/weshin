@@ -1,7 +1,7 @@
 package wx
 
-type WXConfig struct {
-	APPID            string
+type Config struct {
+	AppID            string
 	Secret           string
 	OAuthRedirectURI string
 	State            string

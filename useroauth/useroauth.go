@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"log"
 	"net/url"
-``
+
 	"github.com/MenInBack/weshin/wx"
 )
 
@@ -21,13 +21,13 @@ const (
 	userinfoPath     = "https://api.weixin.qq.com/sns/userinfo"
 )
 
-var WXConfig wx.WXConfig
+var WXConfig wx.Config
 
 // JumpToAuth compose jump uri for user authorization
 // https://open.weixin.qq.com/connect/oauth2/authorize?appid=APPID&redirect_uri=REDIRECT_URI&response_type=code&scope=SCOPE&state=STATE#wechat_redirect
 func JumpToAuth(scope, redirectURI, state string) (jumpURL string, err error) {
-	if len(WXConfig.APPID) <= 0 {
-		return "", wx.ConfigError{InvalidConfig: "APPID"}
+	if len(WXConfig.AppID) <= 0 {
+		return "", wx.ConfigError{InvalidConfig: "appID"}
 	}
 	if scope == "" {
 		scope = wx.OAuthScopeBase
@@ -43,7 +43,7 @@ func JumpToAuth(scope, redirectURI, state string) (jumpURL string, err error) {
 
 	u := bytes.NewBufferString(oAuthPath)
 	u.WriteString("?appid=")
-	u.WriteString(WXConfig.APPID)
+	u.WriteString(WXConfig.appID)
 	u.WriteString("&redirect_uri=")
 	u.WriteString(url.QueryEscape(redirectURI))
 	u.WriteString("&response_type=code")
@@ -62,7 +62,7 @@ func JumpToAuth(scope, redirectURI, state string) (jumpURL string, err error) {
 func GrantAuthorizeToken(code string, timeout int) (token *wx.UserAccessToken, err error) {
 	log.Print("authorizing code: ", code)
 
-	if len(WXConfig.APPID) <= 0 {
+	if len(WXConfig.AppID) <= 0 {
 		return nil, wx.ConfigError{InvalidConfig: "appID"}
 	}
 	if len(WXConfig.Secret) <= 0 {
@@ -76,7 +76,7 @@ func GrantAuthorizeToken(code string, timeout int) (token *wx.UserAccessToken, e
 		Path:    accessTokenPath,
 		Timeout: timeout,
 		Parameters: []wx.QueryParameter{
-			{"appid", WXConfig.APPID},
+			{"appid", WXConfig.AppID},
 			{"secret", WXConfig.Secret},
 			{"code", code},
 			{"grant_type", wx.GrantTypeAuthorize},
@@ -95,7 +95,7 @@ func GrantAuthorizeToken(code string, timeout int) (token *wx.UserAccessToken, e
 // RefreshAuthorizeToken refresh access token for user authorization
 // https://api.weixin.qq.com/sns/oauth2/refresh_token?appid=APPID&grant_type=refresh_token&refresh_token=REFRESH_TOKEN
 func RefreshAuthorizeToken(refreshToken string, timeout int) (token *wx.UserAccessToken, err error) {
-	if len(WXConfig.APPID) <= 0 {
+	if len(WXConfig.AppID) <= 0 {
 		return nil, wx.ConfigError{InvalidConfig: "appID"}
 	}
 	if len(refreshToken) <= 0 {
@@ -106,7 +106,7 @@ func RefreshAuthorizeToken(refreshToken string, timeout int) (token *wx.UserAcce
 		Path:    refreshTokenPath,
 		Timeout: timeout,
 		Parameters: []wx.QueryParameter{
-			{"appid", WXConfig.APPID},
+			{"appid", WXConfig.AppID},
 			{"grant_type", wx.GrantTypeRefresh},
 			{"refresh_token", refreshToken},
 		},
