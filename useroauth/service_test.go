@@ -1,8 +1,9 @@
 package useroauth
 
 import (
-	"github.com/MenInBack/weshin/wx"
 	"testing"
+
+	"github.com/MenInBack/weshin/wx"
 )
 
 /**

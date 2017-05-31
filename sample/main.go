@@ -1,12 +1,13 @@
 package main
 
 import (
-	"github.com/MenInBack/weshin/userauthorize"
-	"github.com/MenInBack/weshin/wx"
 	"io"
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/MenInBack/weshin/userauthorize"
+	"github.com/MenInBack/weshin/wx"
 )
 
 const (
