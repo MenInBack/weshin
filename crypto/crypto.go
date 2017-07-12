@@ -1,5 +1,8 @@
 package crypto
 
+// wechat message crypto api
+// https://open.weixin.qq.com/cgi-bin/showdocument?action=dir_list&t=resource/res_list&verify=1&id=open1419318482&token=&lang=zh_CN
+
 import (
 	"bytes"
 	"crypto/aes"
@@ -52,13 +55,13 @@ func (mc *MessageCrypto) Encrypt(msg []byte, nonce, timestamp string) (data []by
 	//1.add rand str ,len, appid
 	pad, err := mc.messagePadding(msg)
 	if err != nil {
-		return nil, EncryptError{"padding failed", err}
+		return nil, CryptoError{"padding failed", err}
 	}
 
 	//2. AES Encrypt
 	block, err := aes.NewCipher(mc.aesKey)
 	if err != nil {
-		return nil, EncryptError{"aes.NewCipher failed", err}
+		return nil, CryptoError{"aes.NewCipher failed", err}
 	}
 	mode := cipher.NewCBCEncrypter(block, mc.aesKey[:aes.BlockSize])
 	// pad = pad[aes.BlockSize:]
@@ -88,7 +91,7 @@ func (mc *MessageCrypto) Encrypt(msg []byte, nonce, timestamp string) (data []by
 	}
 	data, err = xml.Marshal(rply)
 	if err != nil {
-		return nil, EncryptError{"xml.Marshal failed", err}
+		return nil, CryptoError{"xml.Marshal failed", err}
 	}
 
 	return data, nil
@@ -100,10 +103,10 @@ func (mc *MessageCrypto) Decrypt(src []byte, signature, nonce, timestamp string)
 	encrypted := new(encryptedMessage)
 	err = xml.Unmarshal(src, encrypted)
 	if err != nil {
-		return nil, DecryptError{"xml.Unmarshal failed", err}
+		return nil, CryptoError{"xml.Unmarshal failed", err}
 	}
 	if len(encrypted.Encrypt.Data) == 0 {
-		return nil, DecryptError{"invalid message", errors.New("got nothing")}
+		return nil, CryptoError{"invalid message", errors.New("got nothing")}
 	}
 	if len(nonce) > 0 {
 		mc.nonce = nonce
@@ -122,14 +125,14 @@ func (mc *MessageCrypto) Decrypt(src []byte, signature, nonce, timestamp string)
 		signature = encrypted.MsgSignature.Data
 	}
 	if !bytes.Equal(sign, []byte(signature)) {
-		return nil, DecryptError{"invalid message", errors.New("signature mismatch")}
+		return nil, CryptoError{"invalid message", errors.New("signature mismatch")}
 	}
 
 	//3.decode base64
 	buf := make([]byte, base64.StdEncoding.DecodedLen(len(encrypted.Encrypt.Data)))
 	_, err = base64.StdEncoding.Decode(buf, []byte(encrypted.Encrypt.Data))
 	if err != nil {
-		return nil, DecryptError{"base64.Decode failed ", err}
+		return nil, CryptoError{"base64.Decode failed ", err}
 	}
 	l := len(buf)
 	l = l / aes.BlockSize * aes.BlockSize
@@ -138,7 +141,7 @@ func (mc *MessageCrypto) Decrypt(src []byte, signature, nonce, timestamp string)
 	//4.decode aes
 	block, err := aes.NewCipher(mc.aesKey)
 	if err != nil {
-		return nil, DecryptError{"aes.NewCipher", err}
+		return nil, CryptoError{"aes.NewCipher", err}
 	}
 	mode := cipher.NewCBCDecrypter(block, mc.aesKey[:aes.BlockSize])
 	mode.CryptBlocks(buf, buf)
@@ -146,7 +149,7 @@ func (mc *MessageCrypto) Decrypt(src []byte, signature, nonce, timestamp string)
 	// 5. remove rand str, appid and trailling padding
 	data, err := mc.messageUnpadding(buf)
 	if err != nil {
-		return nil, DecryptError{"unpadding message failed", err}
+		return nil, CryptoError{"unpadding message failed", err}
 	}
 
 	return data, nil
@@ -251,20 +254,11 @@ func randString(len int) ([]byte, error) {
 	return data[:len], nil
 }
 
-type EncryptError struct {
+type CryptoError struct {
 	Detail string
 	Err    error
 }
 
-func (e EncryptError) Error() string {
-	return fmt.Sprintf("encrypt error - %s: %s", e.Detail, e.Err.Error())
-}
-
-type DecryptError struct {
-	Detail string
-	Err    error
-}
-
-func (e DecryptError) Error() string {
-	return fmt.Sprintf("decrypt error - %s: %s", e.Detail, e.Err.Error())
+func (e CryptoError) Error() string {
+	return fmt.Sprintf("crypto error - %s: %s", e.Detail, e.Err.Error())
 }
