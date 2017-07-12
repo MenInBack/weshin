@@ -3,6 +3,7 @@ package wx
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -14,10 +15,11 @@ const (
 )
 
 type HttpClient struct {
-	Path       string
-	Parameters []QueryParameter
-	Timeout    int
-	req        *http.Request
+	Path        string
+	Parameters  []QueryParameter
+	Timeout     int
+	ContentType string
+	req         *http.Request
 }
 
 type QueryParameter struct {
@@ -25,14 +27,22 @@ type QueryParameter struct {
 	Value string
 }
 
-func (c HttpClient) Get(Value interface{}) error {
-	err := c.prepare()
+// to reserve the order of parameters
+func (c HttpClient) Get(value interface{}) error {
+	req, err := http.NewRequest("GET", c.Path, nil)
+	if err != nil {
+		log.Fatal("http.NewRequest error: ", err)
+		return err
+	}
+	c.req = req
+
+	err = c.prepareQueries()
 	if err != nil {
 		log.Print("prepare http request failed: ", err)
 		return err
 	}
 
-	err = c.request(Value)
+	err = c.request(value)
 	if err != nil {
 		log.Print("http request failed: ", err)
 		return err
@@ -41,13 +51,31 @@ func (c HttpClient) Get(Value interface{}) error {
 	return nil
 }
 
-func (c *HttpClient) prepare() error {
-	req, err := http.NewRequest("GET", c.Path, nil)
+func (c *HttpClient) DoPost(body io.Reader, value interface{}) (err error) {
+	req, err := http.NewRequest("POST", c.Path, body)
 	if err != nil {
 		log.Fatal("http.NewRequest error: ", err)
 		return err
 	}
+	c.req = req
+	req.Header.Set("content_type", c.ContentType)
 
+	err = c.prepareQueries()
+	if err != nil {
+		log.Print("prepare http request failed: ", err)
+		return err
+	}
+
+	err = c.request(value)
+	if err != nil {
+		log.Print("http request failed: ", err)
+		return err
+	}
+
+	return nil
+}
+
+func (c *HttpClient) prepareQueries() error {
 	var q bytes.Buffer
 	for i, p := range c.Parameters {
 		if i > 0 {
@@ -58,12 +86,11 @@ func (c *HttpClient) prepare() error {
 		q.WriteString(p.Value)
 	}
 
-	req.URL.RawQuery = q.String()
-	c.req = req
+	c.req.URL.RawQuery = q.String()
 	return nil
 }
 
-func (c *HttpClient) request(Value interface{}) error {
+func (c *HttpClient) request(value interface{}) error {
 	client := http.Client{
 		Timeout: func() time.Duration {
 			if c.Timeout > 0 {
@@ -101,7 +128,7 @@ func (c *HttpClient) request(Value interface{}) error {
 		return err
 	}
 
-	err = json.Unmarshal(data, Value)
+	err = json.Unmarshal(data, value)
 	if err != nil {
 		log.Print("unmarshal response body error: ", err)
 		return err
