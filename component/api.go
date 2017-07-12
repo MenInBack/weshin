@@ -3,41 +3,31 @@ package component
 // https://open.weixin.qq.com/cgi-bin/showdocument?action=dir_list&t=resource/res_list&verify=1&id=open1453779503&token=&lang=zh_CN
 
 import (
+	"bytes"
+	"encoding/json"
 	"encoding/xml"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"encoding/json"
-	"bytes"
 
+	"github.com/MenInBack/weshin/crypto"
 	"github.com/MenInBack/weshin/wx"
 )
 
-type NotifyConfig struct{
-	Address string
-	VerifyTickPath string
-	AuthorizationPath string
-}
-
-var notifyConfig NotifyConfig
-
-func SetNotifyAddress(conf *NotifyConfig){
-	notifyConfig = conf
-}
-
-func StartNotifyHandler(address, path string)error {
-	if notifyConfig == nil{
-		return wx.ParameterError{InvalidParameter: "notify config"}
+func (c *Component) StartNotifyHandler() error {
+	if c.addresses == nil {
+		return wx.ParameterError{InvalidParameter: "notify address config"}
 	}
-	log.Println("starting http service on: ", address)
-	http.HandleFunc(notifyConfig.VerifyTickPath, verifyTicketHandler)
-	http.HandleFunc(notifyConfig.AuthorizationPath, authorizationNotifyHandler)
-	go http.ListenAndServe(address, nil)
+	log.Println("starting http service on: ", c.addresses.Address)
+	http.HandleFunc(c.addresses.VerifyTicketPath, c.verifyTicketHandler)
+	http.HandleFunc(c.addresses.AuthorizationPath, c.authorizationNotifyHandler)
+	go http.ListenAndServe(c.addresses.Address, nil)
 
 	return nil
 }
 
-func verifyTicketHandler(w http.ResponseWriter, req *http.Request) {
+func (c *Component) verifyTicketHandler(w http.ResponseWriter, req *http.Request) {
 	log.Println("got verify ticket req")
 
 	body, err := ioutil.ReadAll(req.Body)
@@ -45,76 +35,117 @@ func verifyTicketHandler(w http.ResponseWriter, req *http.Request) {
 		log.Println("ioutil.ReadAll error: ", err)
 		return
 	}
-	// todo: decrypt
+
+	// decrypt
+	p := getParameter(req)
+	encoding, err := crypto.New(c.encodingAESKey, c.storage.GetAccessToken(), c.appID)
+	if err != nil {
+		log.Println("crypto.New error: ", err)
+		return
+	}
+	data, err := encoding.Decrypt(body, p.signature, p.nonce, p.timestamp)
+	if err != nil {
+		log.Println("encoding.Decrypt error: ", err)
+		return
+	}
+
 	var reqBody ComponentVerifyTicket
-	err = xml.Unmarshal(body, &reqBody)
+	err = xml.Unmarshal(data, &reqBody)
 	if err != nil {
 		log.Println("xml.Unmarshal error: ", err)
 		return
 	}
 
 	log.Printf("request body: %+v\n", reqBody)
-	w.Write("success")
+	w.Write([]byte("success"))
 
-	go ticketStorage.Set(reqBody.ComponentVerifyTicket, reqBody.CreateTime, 0)
+	go c.storage.SetVerifyTicket(reqBody.ComponentVerifyTicket, reqBody.CreateTime)
 }
 
-func authorizationNotifyHandler(w http.ResponseWriter, req *http.Request){
+func (c *Component) authorizationNotifyHandler(w http.ResponseWriter, req *http.Request) {
 	log.Println("got authorization notify")
 
-	body, err := ioutile.ReadAll(req.Body)
-	if err != nil{
+	body, err := ioutil.ReadAll(req.Body)
+	if err != nil {
 		log.Println("ioutile.ReadAll error: ", err)
 		return
 	}
 
-	// todo: decrypt
-	var reqBody = new(authorizationNotifyBody)
-	err = xml.Unmarshal(body, reqBody)
-	if err != nil{
-		log.Println("xml.Unmarshal error: " ,err)
+	// decrypt
+	p := getParameter(req)
+	encoding, err := crypto.New(c.encodingAESKey, c.storage.GetAccessToken(), c.appID)
+	if err != nil {
+		log.Println("crypto.New error: ", err)
+		return
+	}
+	data, err := encoding.Decrypt(body, p.signature, p.nonce, p.timestamp)
+	if err != nil {
+		log.Println("encoding.Decrypt error: ", err)
+		return
+	}
+
+	var reqBody authorizationNotifyBody
+	err = xml.Unmarshal(data, &reqBody)
+	if err != nil {
+		log.Println("xml.Unmarshal error: ", err)
 		return
 	}
 
 	log.Printf("request body: %+v\n", reqBody)
-	w.Write("success")
+	w.Write([]byte("success"))
 
-	switch reqBody.InfoType{
+	switch reqBody.InfoType {
 	case NotifyTypeAuthorized, NotifyTypeUpdateAuthorized:
-		go authorizationStorage.Set(&reqBody.AuthorizationCode)
+		go c.storage.SetAuthorizationCode(&AuthorizationCode{
+			AppID:       reqBody.AuthorizationCode.AppID,
+			Code:        reqBody.AuthorizationCode.Code,
+			ExpiredTime: reqBody.AuthorizationCode.ExpiredTime,
+		})
 	case NotifyTypeUnauthorized:
-		go authorizationStorage.Clear(reqBody.AuthorizerAppID)	
+		go c.storage.ClearAuthorizertoken(reqBody.AuthorizationCode.AppID)
 	}
 
 }
 
+type messageParameter struct {
+	timestamp   string
+	nonce       string
+	encryptType string
+	signature   string
+}
+
+func getParameter(req *http.Request) *messageParameter {
+	// todo
+	return nil
+}
+
 // https://api.weixin.qq.com/cgi-bin/component/api_component_token
-func GetComponentAccessToken(timeout int) (token *ComponentAccessToken, err error){
+func (c *Component) GetComponentAccessToken(timeout int) (token *ComponentAccessToken, err error) {
 	req := wx.HttpClient{
-		Path:    accessTokenURI,
+		Path:        accessTokenURI,
 		ContentType: "application/json",
-		Timeout: timeout,
+		Timeout:     timeout,
 	}
 
-	var body struct {
+	body := struct {
 		ComponentAppID        string `json:"component_appid"`
 		ComponentAppSecret    string `json:"component_appsecret"`
 		ComponentVerifyTicket string `json:"component_verify_token"`
 	}{
-		ComponentAppID:componentConfig.AppID,
-		ComponentAppSecret:componentConfig.AppSecret,
-		ComponentVerifyTicket:ticketStorage.Get()
+		c.appID,
+		c.appSecret,
+		c.storage.GetVerifyTicket(),
 	}
 
 	b, err := json.Marshal(body)
-	if err != nil{
+	if err != nil {
 		return nil, fmt.Errorf("json.Marshal: ", err)
 	}
 	buf := bytes.NewBuffer(b)
 
 	token = new(ComponentAccessToken)
-	err := req.DoPost(buf, token)
-	if err != nil{
+	err = req.DoPost(buf, token)
+	if err != nil {
 		return nil, err
 	}
 
@@ -122,31 +153,29 @@ func GetComponentAccessToken(timeout int) (token *ComponentAccessToken, err erro
 }
 
 // https://api.weixin.qq.com/cgi-bin/component/api_create_preauthcode?component_access_token=xxx
-func GetPreAuthCode(timeout int)(code *PreAuthCode, err error){
+func (c *Component) GetPreAuthCode(timeout int) (code *PreAuthCode, err error) {
 	req := wx.HttpClient{
-		Path: preAuthCodeURI,
+		Path:        preAuthCodeURI,
 		ContentType: "application/json",
-		Parameters: []wx.QueryParameter{
-			"component_access_token": tokenStorage.Get(),
-		},
+		Parameters: []wx.QueryParameter{{
+			"component_access_token", c.storage.GetAccessToken(),
+		}},
 		Timeout: timeout,
 	}
 
-	var body struct{
-		ComponentAppID        string `json:"component_appid"`
-	}{
-		componentConfig.AppID,		
-	}
+	body := struct {
+		ComponentAppID string `json:"component_appid"`
+	}{c.appID}
 
 	b, err := json.Marshal(body)
-	if err != nil{
+	if err != nil {
 		return nil, fmt.Errorf("json.Marshal: ", err)
 	}
 	buf := bytes.NewBuffer(b)
 
 	code = new(PreAuthCode)
-	err := req.DoPost(buf, code)
-	if err != nil{
+	err = req.DoPost(buf, code)
+	if err != nil {
 		return nil, err
 	}
 
@@ -154,103 +183,104 @@ func GetPreAuthCode(timeout int)(code *PreAuthCode, err error){
 }
 
 // https://api.weixin.qq.com/cgi-bin/component/api_query_auth?component_access_token=xxxx
-func GetAuthorizationInfo(authorizationCode string, timeout int)(auth *Authorization, err error){
+func (c *Component) GetAuthorizationInfo(authorizationCode string, timeout int) (auth *AuthorizationTokenInfo, err error) {
 	req := wx.HttpClient{
-		Path: authorizationInfoURI,
+		Path:        authorizationInfoURI,
 		ContentType: "application/json",
-		Parameters: []wx.QueryParameter{
-			"component_access_token": tokenStorage.Get(),
-		},
+		Parameters: []wx.QueryParameter{{
+			"component_access_token", c.storage.GetAccessToken(),
+		}},
 		Timeout: timeout,
 	}
 
-	var body struct{
-		ComponentAppID        string `json:"component_appid"`
+	body := struct {
+		ComponentAppID    string `json:"component_appid"`
 		AuthorizationCode string `json:"authorization_code"`
 	}{
-		componentConfig.AppID,		
+		c.appID,
 		authorizationCode,
 	}
 
 	b, err := json.Marshal(body)
-	if err != nil{
+	if err != nil {
 		return nil, fmt.Errorf("json.Marshal: ", err)
 	}
 	buf := bytes.NewBuffer(b)
 
-	auth = new(Authorization)
-	err := req.DoPost(buf, auth)
-	if err != nil{
+	auth = new(AuthorizationTokenInfo)
+	err = req.DoPost(buf, auth)
+	if err != nil {
 		return nil, err
 	}
 
-	return code, nil
+	return auth, nil
 }
 
 // https://api.weixin.qq.com/cgi-bin/component/api_authorizer_token?component_access_token=xxxxx
-func RefreshAuthorizerToken(authorizerAppID, refreshToken string, timeout int)(info *AuthorizationInfo, err error){
-		req := wx.HttpClient{
-		Path: authorizeInfoURI,
+func (c *Component) RefreshAuthorizerToken(authorizerAppID string, timeout int) (token *AuthorizerToken, err error) {
+	req := wx.HttpClient{
+		Path:        authorizerTokenURI,
 		ContentType: "application/json",
-		Parameters: []wx.QueryParameter{
-			"component_access_token": tokenStorage.Get(),
-		},
+		Parameters: []wx.QueryParameter{{
+			"component_access_token", c.storage.GetAccessToken(),
+		}},
 		Timeout: timeout,
 	}
 
-	var body struct{
-		ComponentAppID        string `json:"component_appid"`
-		AuthorizerAppID string `json:"authorizer_appid"`
+	body := struct {
+		ComponentAppID         string `json:"component_appid"`
+		AuthorizerAppID        string `json:"authorizer_appid"`
 		AuthorizerRefreshToken string `json:"authorizer_refresh_token"`
 	}{
-		componentConfig.AppID,
+		c.appID,
 		authorizerAppID,
-		refreshToken,
+		c.storage.GetAuthorizerToken(authorizerAppID).RefreshToken,
 	}
 
 	b, err := json.Marshal(body)
-	if err != nil{
+	if err != nil {
 		return nil, fmt.Errorf("json.Marshal: ", err)
 	}
 	buf := bytes.NewBuffer(b)
 
-	info = new(AuthorizationInfo)
-	err := req.DoPost(buf, info)
-	if err != nil{
+	token = new(AuthorizerToken)
+	err = req.DoPost(buf, token)
+	if err != nil {
 		return nil, err
 	}
+	token.AppID = authorizerAppID
 
-	return info, nil
+	return token, nil
 }
 
 // https://api.weixin.qq.com/cgi-bin/component/api_get_authorizer_info?component_access_token=xxxx
-func GetAuthorizerInfo(authorizerAppID string, timeout int)(info *Authorizer, err error){
+func (c *Component) GetAuthorizerInfo(authorizerAppID string, timeout int) (info *Authorizer, err error) {
 	req := wx.HttpClient{
-		Path: authorizerInfoURI,
+		Path:        authorizerInfoURI,
 		ContentType: "application/json",
-		Parameters: []wx.QueryParameter{
-			"component_access_token": tokenStorage.Get(),
-		},
+		Parameters: []wx.QueryParameter{{
+			"component_access_token", c.storage.GetAccessToken(),
+		}},
 		Timeout: timeout,
 	}
 
-	var body struct{
-		ComponentAppID        string `json:"component_appid"`
+	body := struct {
+		ComponentAppID  string `json:"component_appid"`
 		AuthorizerAppID string `json:"authorizer_appid"`
 	}{
-		componentConfig.AppID,
+		c.appID,
 		authorizerAppID,
 	}
 
 	b, err := json.Marshal(body)
-	if err != nil{
+	if err != nil {
 		return nil, fmt.Errorf("json.Marshal: ", err)
 	}
 	buf := bytes.NewBuffer(b)
 
 	info = new(Authorizer)
-	err := req.DoPost(buf, info)
-	if err != nil{
+	err = req.DoPost(buf, info)
+	if err != nil {
 		return nil, err
 	}
 
@@ -258,35 +288,35 @@ func GetAuthorizerInfo(authorizerAppID string, timeout int)(info *Authorizer, er
 }
 
 // https://api.weixin.qq.com/cgi-bin/component/api_get_authorizer_option?component_access_token=xxxx
-func GetAuthorizerOption(authorizerAppID, optionName string, timeout int)(option *AuthorizerOption, err error){
+func (c *Component) GetAuthorizerOption(authorizerAppID, optionName string, timeout int) (option *AuthorizerOption, err error) {
 	req := wx.HttpClient{
-		Path: getAuthorizerOptionURI,
+		Path:        getAuthorizerOptionURI,
 		ContentType: "application/json",
-		Parameters: []wx.QueryParameter{
-			"component_access_token": tokenStorage.Get(),
-		},
+		Parameters: []wx.QueryParameter{{
+			"component_access_token", c.storage.GetAccessToken(),
+		}},
 		Timeout: timeout,
 	}
 
-	var body struct{
-		ComponentAppID        string `json:"component_appid"`
+	body := struct {
+		ComponentAppID  string `json:"component_appid"`
 		AuthorizerAppID string `json:"authorizer_appid"`
-		OptionName string `json:"option_name"`
+		OptionName      string `json:"option_name"`
 	}{
-		componentConfig.AppID,
+		c.appID,
 		authorizerAppID,
 		optionName,
 	}
 
 	b, err := json.Marshal(body)
-	if err != nil{
+	if err != nil {
 		return nil, fmt.Errorf("json.Marshal: ", err)
 	}
 	buf := bytes.NewBuffer(b)
 
 	option = new(AuthorizerOption)
-	err := req.DoPost(buf, option)
-	if err != nil{
+	err = req.DoPost(buf, option)
+	if err != nil {
 		return nil, err
 	}
 
@@ -294,38 +324,38 @@ func GetAuthorizerOption(authorizerAppID, optionName string, timeout int)(option
 }
 
 // https://api.weixin.qq.com/cgi-bin/component/api_set_authorizer_option?component_access_token=xxxx
-func SetAuthorizerOption(option *AuthorizerOption, timeout int)(error){
+func (c *Component) SetAuthorizerOption(option *AuthorizerOption, timeout int) error {
 	req := wx.HttpClient{
-		Path: setAuthorizerOptionURI,
+		Path:        setAuthorizerOptionURI,
 		ContentType: "application/json",
-		Parameters: []wx.QueryParameter{
-			"component_access_token": tokenStorage.Get(),
-		},
+		Parameters: []wx.QueryParameter{{
+			"component_access_token", c.storage.GetAccessToken(),
+		}},
 		Timeout: timeout,
 	}
 
-	var body struct{
-		ComponentAppID        string `json:"component_appid"`
+	body := struct {
+		ComponentAppID  string `json:"component_appid"`
 		AuthorizerAppID string `json:"authorizer_appid"`
-		OptionName string `json:"option_name"`
-		OptionValue string `json:"option_value"`
+		OptionName      string `json:"option_name"`
+		OptionValue     string `json:"option_value"`
 	}{
-		componentConfig.AppID,
+		c.appID,
 		option.AuthorizerAppID,
 		option.OptionName,
 		option.OptionValue,
 	}
 
 	b, err := json.Marshal(body)
-	if err != nil{
-		return nil, fmt.Errorf("json.Marshal: ", err)
+	if err != nil {
+		return fmt.Errorf("json.Marshal: ", err)
 	}
 	buf := bytes.NewBuffer(b)
 
-	err := req.DoPost(buf, interface{})
-	if err != nil{
-		return nil, err
+	err = req.DoPost(buf, nil)
+	if err != nil {
+		return err
 	}
 
-	return option, nil
+	return nil
 }
