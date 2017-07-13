@@ -1,32 +1,28 @@
 package main
 
 import (
-	"io"
 	"log"
 	"net/http"
-	"strings"
 
-	"github.com/MenInBack/weshin/userauthorize"
+	"github.com/MenInBack/weshin/useroauth"
 	"github.com/MenInBack/weshin/wx"
 )
 
 const (
-	helloURI     = "YourServerAddress/hello"
-	callbackURI  = "YourServerAddress/oauthcallback"
+	appID  = ""
+	secret = ""
+	token  = "-itCg_1p7WX8MnjHVgHLA2MEywstb2I0JUUGaAHAFFR"
+
+	address      = ""
+	helloURI     = ""
+	callbackURI  = ""
 	defaultState = "STATE"
 )
 
-func init() {
-	userauthorize.WXConfig = wx.Config{
-		AppID:  "YourAppID",
-		Secret: "YourSecret",
-	}
-}
-
 func main() {
-	http.HandleFunc("/oauthcallback", OAuthCallback)
-	http.HandleFunc("/hello", Hello)
-	err := http.ListenAndServe("YourServerAddress", nil)
+	http.HandleFunc("", Hello)
+	http.HandleFunc("", OAuthCallback)
+	err := http.ListenAndServe(address, nil)
 	if err != nil {
 		log.Fatal("ListenAndServe error: ", err)
 	}
@@ -34,11 +30,12 @@ func main() {
 
 func Hello(w http.ResponseWriter, req *http.Request) {
 	log.Print("got hello req: ", req)
-	path := strings.Trim(req.URL.Path, "/")
-	parts := strings.Split(path, "/")
-	if len(parts) <= 1 {
+	name := req.URL.Query().Get("name")
+
+	if name == "" {
 		log.Print("unknown user")
-		jumpURI, err := userauthorize.JumpToAuth(wx.OAuthScopeBase, callbackURI, defaultState)
+		oAuth := useroauth.New(appID, secret)
+		jumpURI, err := oAuth.JumpToAuth(wx.OAUthScopeUserInfo, callbackURI, defaultState)
 		if err != nil {
 			log.Print("jumpURI error: ", err)
 			return
@@ -47,7 +44,7 @@ func Hello(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	io.WriteString(w, "hello "+parts[1])
+	w.Write([]byte("hello " + name))
 
 }
 
@@ -55,8 +52,8 @@ func OAuthCallback(w http.ResponseWriter, req *http.Request) {
 	log.Print("got OAuth callback")
 
 	q := req.URL.Query()
-	code := q["code"][0]
-	state := q["state"][0]
+	code := q.Get("code")
+	state := q.Get("state")
 
 	if len(code) <= 0 {
 		log.Print("invlaid code")
@@ -67,13 +64,14 @@ func OAuthCallback(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	token, err := userauthorize.GrantAuthorizeToken(code, 0)
+	oAuth := useroauth.New(appID, secret)
+	token, err := oAuth.GrantAuthorizeToken(code, 0)
 	if err != nil {
-		log.Print("GrantAuthorizeToken error: ", err)
-		return
+		log.Fatal(err)
 	}
+	log.Printf("got access token %+v", token)
 
-	userinfo, err := userauthorize.GetUserInfo(token.AccessToken, token.OpenID, "", 0)
+	userinfo, err := useroauth.GetUserInfo(token.OpenID, token.AccessToken, "", 0)
 	if err != nil {
 		log.Print("GetUserInfo error: ", err)
 		return
@@ -81,6 +79,5 @@ func OAuthCallback(w http.ResponseWriter, req *http.Request) {
 
 	log.Print("got user info: ", userinfo)
 
-	http.Redirect(w, req, helloURI+userinfo.Nickname, http.StatusSeeOther)
-
+	http.Redirect(w, req, helloURI+"?name="+userinfo.Nickname, http.StatusSeeOther)
 }
