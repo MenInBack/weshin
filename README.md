@@ -1,5 +1,4 @@
 [![Build Status](https://travis-ci.org/MenInBack/weshin.svg?branch=master)](https://travis-ci.org/MenInBack/weshin)
-
 [![Coverage Status](https://coveralls.io/repos/github/MenInBack/weshin/badge.svg?branch=master)](https://coveralls.io/github/MenInBack/weshin?branch=master)
 
 # weshin
