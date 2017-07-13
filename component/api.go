@@ -116,8 +116,13 @@ type messageParameter struct {
 }
 
 func getParameter(req *http.Request) *messageParameter {
-	// todo
-	return nil
+	queries := req.URL.Query()
+	return &messageParameter{
+		timestamp:   queries.Get("timestamp"),
+		nonce:       queries.Get("nonce"),
+		encryptType: queries.Get("encrypt_type"),
+		signature:   queries.Get("msg_signature"),
+	}
 }
 
 // https://api.weixin.qq.com/cgi-bin/component/api_component_token
