@@ -1,8 +1,7 @@
 package useroauth
 
-/**
- * https://mp.weixin.qq.com/wiki/ 微信网页开发/微信网页授权
- */
+// wechat user oauth api
+// https://mp.weixin.qq.com/wiki/ 微信网页开发/微信网页授权
 
 import (
 	"bytes"
@@ -16,7 +15,13 @@ const (
 	oAuthPath        = "https://open.weixin.qq.com/connect/oauth2/authorize"
 	accessTokenPath  = "https://api.weixin.qq.com/sns/oauth2/access_token"
 	refreshTokenPath = "https://api.weixin.qq.com/sns/oauth2/refresh_token"
+	verifyTokenPath  = "https://api.weixin.qq.com/sns/auth"
 	userinfoPath     = "https://api.weixin.qq.com/sns/userinfo"
+)
+
+const (
+	OAuthScopeBase     = "snsapi_base"
+	OAUthScopeUserInfo = "snsapi_userinfo"
 )
 
 // JumpToAuth compose jump uri for user authorization.
@@ -123,7 +128,7 @@ func GetUserInfo(openID, token, lang string, timeout int) (info *UserInfo, err e
 // https://api.weixin.qq.com/sns/auth?access_token=ACCESS_TOKEN&openid=OPENID
 func (o *OAuth) VerifyAuthorizeToken(openID, token string, timeout int) (valid bool, err error) {
 	req := wx.HttpClient{
-		Path:    userinfoPath,
+		Path:    verifyTokenPath,
 		Timeout: timeout,
 		Parameters: []wx.QueryParameter{
 			{"access_token", token},
