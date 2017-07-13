@@ -26,9 +26,9 @@ type UserInfo struct {
 	UnionID    string   `json:"unionid"`
 }
 
-// GetUserInfo with known openID, accessToken is token of mp account.
+// GetUserInfo with known openID
 // https://api.weixin.qq.com/cgi-bin/user/info?access_token=ACCESS_TOKEN&openid=OPENID&lang=zh_CN
-func GetUserInfo(accessToken, openID, lang string, timeout int) (userinfo *UserInfo, err error) {
+func (s *MPService) GetUserInfo(openID, lang string, timeout int) (userinfo *UserInfo, err error) {
 	if len(openID) <= 0 {
 		return nil, wx.ParameterError{InvalidParameter: "openID"}
 	}
@@ -42,7 +42,7 @@ func GetUserInfo(accessToken, openID, lang string, timeout int) (userinfo *UserI
 		Path:    userinfoPath,
 		Timeout: timeout,
 		Parameters: []wx.QueryParameter{
-			{"access_token", accessToken},
+			{"access_token", s.token.Get()},
 			{"openid", openID},
 			{"lang", lang},
 		},

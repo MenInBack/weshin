@@ -13,8 +13,9 @@ func New(appID, secret string, tokenStorage TokenStorage) *MPService {
 		tokenStorage = newDefaultTokenStorage()
 	}
 	return &MPService{
-		appID: appID,
-		token: tokenStorage,
+		appID:  appID,
+		secret: secret,
+		token:  tokenStorage,
 	}
 }
 
