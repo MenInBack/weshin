@@ -11,7 +11,6 @@ import (
 const (
 	appID  = ""
 	secret = ""
-	token  = "-itCg_1p7WX8MnjHVgHLA2MEywstb2I0JUUGaAHAFFR"
 
 	address      = ""
 	helloURI     = ""
