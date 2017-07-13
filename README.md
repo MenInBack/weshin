@@ -29,7 +29,7 @@ A WeChat openAPI wrapper for **Go**
 需要有:
 
 - 一个正常使用的微信公众号，可[申请测试号](http://mp.weixin.qq.com/debug/cgi-bin/sandbox?t=sandbox/login);
-- 一台公网能访问的服务器（测试号可使用IP访问，正式公众号只能用域名
+- 一台公网能访问的服务器（测试号可使用IP访问，正式公众号只能用域名）
 
 **微信网页授权**
 
