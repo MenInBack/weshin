@@ -35,6 +35,7 @@ type MessageCrypto struct {
 	userName  string
 }
 
+// New wechat message crypto
 func New(encodingAESKey, token, appID string) (*MessageCrypto, error) {
 	if len(encodingAESKey) != encodingKeySize {
 		return nil, errors.New("invalid encodingAESKey")
@@ -203,12 +204,7 @@ func (mc *MessageCrypto) messageUnpadding(src []byte) ([]byte, error) {
 
 // msg_signature=sha1(sort(Token、timestamp、nonce, msg_encrypt))
 func (mc *MessageCrypto) signature(encrypt []byte) []byte {
-	words := []string{mc.Token, mc.timeStamp, mc.nonce, string(encrypt)}
-	sort.Strings(words)
-	sum := sha1.Sum([]byte(strings.Join(words, "")))
-	data := make([]byte, hex.EncodedLen(len(sum)))
-	hex.Encode(data, sum[:])
-	return data
+	return Signature([]string{mc.Token, mc.timeStamp, mc.nonce, string(encrypt)})
 }
 
 func pkcs7Padding(buf []byte) []byte {
@@ -261,4 +257,13 @@ type CryptoError struct {
 
 func (e CryptoError) Error() string {
 	return fmt.Sprintf("crypto error - %s: %s", e.Detail, e.Err.Error())
+}
+
+// Signature signature generator for wechat message
+func Signature(message []string) []byte {
+	sort.Strings(message)
+	sum := sha1.Sum([]byte(strings.Join(message, "")))
+	data := make([]byte, hex.EncodedLen(len(sum)))
+	hex.Encode(data, sum[:])
+	return data
 }
