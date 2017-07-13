@@ -19,6 +19,7 @@ func TestAccessToken(t *testing.T) {
 	log.Print("got access token: ", token)
 }
 
+// deprecated
 func TestTokenStorage(t *testing.T) {
 	grantedToken := "GrantedToken"
 

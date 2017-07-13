@@ -14,13 +14,21 @@ const (
 	userinfoPath = "https://api.weixin.qq.com/cgi-bin/user/info"
 )
 
-// GetUserInfo with known openID
+type UserInfo struct {
+	OpenID     string   `json:"openid"`
+	Nickname   string   `json:"nickname"`
+	Sex        int      `json:"sex"`
+	Province   string   `json:"province"`
+	City       string   `json:"city"`
+	Country    string   `json:"country"`
+	HeadImgURL string   `json:"headimgurl"`
+	Privilege  []string `json:"privilege"`
+	UnionID    string   `json:"unionid"`
+}
+
+// GetUserInfo with known openID, accessToken is token of mp account.
 // https://api.weixin.qq.com/cgi-bin/user/info?access_token=ACCESS_TOKEN&openid=OPENID&lang=zh_CN
-func GetUserInfo(openID, lang string, timeout int) (userinfo *wx.UserInfo, err error) {
-	token, err := tokenStorage.Get()
-	if err != nil {
-		return nil, wx.ConfigError{InvalidConfig: "token"}
-	}
+func GetUserInfo(accessToken, openID, lang string, timeout int) (userinfo *UserInfo, err error) {
 	if len(openID) <= 0 {
 		return nil, wx.ParameterError{InvalidParameter: "openID"}
 	}
@@ -34,13 +42,13 @@ func GetUserInfo(openID, lang string, timeout int) (userinfo *wx.UserInfo, err e
 		Path:    userinfoPath,
 		Timeout: timeout,
 		Parameters: []wx.QueryParameter{
-			{"access_token", token.AccessToken},
+			{"access_token", accessToken},
 			{"openid", openID},
 			{"lang", lang},
 		},
 	}
 
-	userinfo = new(wx.UserInfo)
+	userinfo = new(UserInfo)
 	err = req.Get(userinfo)
 	if err != nil {
 		log.Print("get userinfo failed: ", err)
