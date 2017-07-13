@@ -1,28 +1,15 @@
 package useroauth
 
 type OAuth struct {
-	appID       string
-	secret      string
-	accessToken AccessToken
-	// userToken   UserAccessTokenStorage
+	appID  string
+	secret string
 }
 
-func New(appid, secret string, accessToken AccessToken) *OAuth {
-	// if userToken == nil {
-	// 	userToken = newDefaultUserAccessToken()
-	// }
-
+func New(appid, secret string) *OAuth {
 	return &OAuth{
-		appID:       appid,
-		secret:      secret,
-		accessToken: accessToken,
-		// userToken:   userToken,
+		appID:  appid,
+		secret: secret,
 	}
-}
-
-// AccessToken of official account or thirdparty component
-type AccessToken interface {
-	GetAccessToken() string
 }
 
 // UserAccessToken
@@ -33,17 +20,6 @@ type UserAccessToken struct {
 	OpenID       string `json:"openid"`
 	Scope        string `json:"scope"`
 }
-
-// type UserAccessTokenStorage interface {
-// 	Set(token *UserAccessToken)
-// 	Get(openID string) *UserAccessToken
-// }
-
-// type defaultUserAccessToken struct{}
-
-// func newDefaultUserAccessToken() *defaultUserAccessToken             { return nil }
-// func (t *defaultUserAccessToken) Set(token *UserAccessToken)         {}
-// func (t *defaultUserAccessToken) Get(openID string) *UserAccessToken { return nil }
 
 type UserInfo struct {
 	OpenID     string   `json:"openid"`
