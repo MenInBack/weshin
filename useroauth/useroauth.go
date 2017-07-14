@@ -30,7 +30,7 @@ const (
 func (o *OAuth) JumpToAuth(scope, redirectURI, state string) (jumpURL string, err error) {
 	u := bytes.NewBufferString(oAuthPath)
 	u.WriteString("?appid=")
-	u.WriteString(o.appID)
+	u.WriteString(o.AppID)
 	u.WriteString("&redirect_uri=")
 	u.WriteString(url.QueryEscape(redirectURI))
 	u.WriteString("&response_type=code")
@@ -38,6 +38,10 @@ func (o *OAuth) JumpToAuth(scope, redirectURI, state string) (jumpURL string, er
 	u.WriteString(scope)
 	u.WriteString("&state=")
 	u.WriteString(state)
+	if o.Mode == wx.ModeComponent {
+		u.WriteString("&component_appid=")
+		u.WriteString(o.ComponentID)
+	}
 	u.WriteString("#wechat_redirect")
 
 	log.Print("jump uri for authorization: ", u.String())
@@ -49,15 +53,28 @@ func (o *OAuth) JumpToAuth(scope, redirectURI, state string) (jumpURL string, er
 // https://api.weixin.qq.com/sns/oauth2/access_token?appid=APPID&secret=SECRET&code=CODE&grant_type=authorization_code
 func (o *OAuth) GrantAuthorizeToken(code string, timeout int) (token *UserAccessToken, err error) {
 	log.Print("authorizing code: ", code)
-	req := wx.HttpClient{
-		Path:    accessTokenPath,
-		Timeout: timeout,
-		Parameters: []wx.QueryParameter{
-			{"appid", o.appID},
+	var parameters []wx.QueryParameter
+	switch o.Mode {
+	case wx.ModeComponent:
+		parameters = []wx.QueryParameter{
+			{"appid", o.AppID},
+			{"code", code},
+			{"grant_type", wx.GrantTypeAuthorize},
+			{"component_appid", o.ComponentID},
+			{"component_access_token", o.server.GetAccessToken()},
+		}
+	case wx.ModeMP:
+		parameters = []wx.QueryParameter{
+			{"appid", o.AppID},
 			{"secret", o.secret},
 			{"code", code},
 			{"grant_type", wx.GrantTypeAuthorize},
-		},
+		}
+	}
+	req := wx.HttpClient{
+		Path:       accessTokenPath,
+		Timeout:    timeout,
+		Parameters: parameters,
 	}
 
 	token = new(UserAccessToken)
@@ -67,21 +84,34 @@ func (o *OAuth) GrantAuthorizeToken(code string, timeout int) (token *UserAccess
 		return nil, err
 	}
 
-	// o.userToken.Set(token)
 	return token, nil
 }
 
 // RefreshAuthorizeToken refresh access token for user authorization
 // https://api.weixin.qq.com/sns/oauth2/refresh_token?appid=APPID&grant_type=refresh_token&refresh_token=REFRESH_TOKEN
 func (o *OAuth) RefreshAuthorizeToken(refreshToken string, timeout int) (token *UserAccessToken, err error) {
-	req := wx.HttpClient{
-		Path:    refreshTokenPath,
-		Timeout: timeout,
-		Parameters: []wx.QueryParameter{
-			{"appid", o.appID},
+	var parameters []wx.QueryParameter
+	switch o.Mode {
+	case wx.ModeComponent:
+		parameters = []wx.QueryParameter{
+			{"appid", o.AppID},
 			{"grant_type", wx.GrantTypeRefresh},
 			{"refresh_token", refreshToken},
-		},
+			{"component_appid", o.ComponentID},
+			{"component_access_token", o.server.GetAccessToken()},
+		}
+	case wx.ModeMP:
+		parameters = []wx.QueryParameter{
+			{"appid", o.AppID},
+			{"grant_type", wx.GrantTypeRefresh},
+			{"refresh_token", refreshToken},
+		}
+	}
+
+	req := wx.HttpClient{
+		Path:       refreshTokenPath,
+		Timeout:    timeout,
+		Parameters: parameters,
 	}
 
 	token = new(UserAccessToken)
@@ -95,7 +125,7 @@ func (o *OAuth) RefreshAuthorizeToken(refreshToken string, timeout int) (token *
 }
 
 // GetUserInfo get authorized user info
-// token is user access token granted earlier
+// token is user access token granted earlier, not access token of mp account or component
 // https://api.weixin.qq.com/sns/userinfo?access_token=ACCESS_TOKEN&openid=OPENID&lang=zh_CN
 func GetUserInfo(openID, token, lang string, timeout int) (info *UserInfo, err error) {
 	if lang == "" {

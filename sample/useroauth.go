@@ -1,27 +1,49 @@
 package main
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/MenInBack/weshin/useroauth"
 	"github.com/MenInBack/weshin/wx"
 )
 
 const (
-	appID  = ""
-	secret = ""
-
-	address      = ""
-	helloURI     = ""
-	callbackURI  = ""
 	defaultState = "STATE"
 )
 
-func main() {
+var config struct {
+	AppID       string `json:"appID,omitempty"`
+	Secret      string `json:"secret,omitempty"`
+	Address     string `json:"address,omitempty"`
+	HelloURI    string `json:"helloURI,omitempty"`
+	CallbackURI string `json:"callbackURI,omitempty"`
+}
+
+func init() {
+	file, err := os.Open("config.json")
+	if err != nil {
+		log.Fatal("os.Open error: ", err)
+	}
+	defer file.Close()
+
+	data, err := ioutil.ReadAll(file)
+	if err != nil {
+		log.Fatal("ioutil.ReadAll error: ", err)
+	}
+	err = json.Unmarshal(data, &config)
+	if err != nil {
+		log.Fatal("json.Unmarshal error: ", err)
+	}
+}
+
+func StartOAuthServer() {
 	http.HandleFunc("", Hello)
 	http.HandleFunc("", OAuthCallback)
-	err := http.ListenAndServe(address, nil)
+	err := http.ListenAndServe(config.Address, nil)
 	if err != nil {
 		log.Fatal("ListenAndServe error: ", err)
 	}
@@ -33,8 +55,8 @@ func Hello(w http.ResponseWriter, req *http.Request) {
 
 	if name == "" {
 		log.Print("unknown user")
-		oAuth := useroauth.New(appID, secret)
-		jumpURI, err := oAuth.JumpToAuth(wx.OAUthScopeUserInfo, callbackURI, defaultState)
+		oAuth := useroauth.New(config.AppID, config.Secret)
+		jumpURI, err := oAuth.JumpToAuth(wx.OAUthScopeUserInfo, config.CallbackURI, defaultState)
 		if err != nil {
 			log.Print("jumpURI error: ", err)
 			return
@@ -63,7 +85,7 @@ func OAuthCallback(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	oAuth := useroauth.New(appID, secret)
+	oAuth := useroauth.New(config.AppID, config.Secret)
 	token, err := oAuth.GrantAuthorizeToken(code, 0)
 	if err != nil {
 		log.Fatal(err)
@@ -78,5 +100,5 @@ func OAuthCallback(w http.ResponseWriter, req *http.Request) {
 
 	log.Print("got user info: ", userinfo)
 
-	http.Redirect(w, req, helloURI+"?name="+userinfo.Nickname, http.StatusSeeOther)
+	http.Redirect(w, req, config.HelloURI+"?name="+userinfo.Nickname, http.StatusSeeOther)
 }

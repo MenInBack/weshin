@@ -39,7 +39,7 @@ func (c *Component) verifyTicketHandler(w http.ResponseWriter, req *http.Request
 
 	// decrypt
 	p := getParameter(req)
-	encoding, err := crypto.New(c.encodingAESKey, c.storage.GetAccessToken(), c.appID)
+	encoding, err := crypto.New(c.encodingAESKey, c.storage.GetAccessToken(), c.AppID)
 	if err != nil {
 		log.Println("crypto.New error: ", err)
 		return
@@ -74,7 +74,7 @@ func (c *Component) authorizationNotifyHandler(w http.ResponseWriter, req *http.
 
 	// decrypt
 	p := getParameter(req)
-	encoding, err := crypto.New(c.encodingAESKey, c.storage.GetAccessToken(), c.appID)
+	encoding, err := crypto.New(c.encodingAESKey, c.storage.GetAccessToken(), c.AppID)
 	if err != nil {
 		log.Println("crypto.New error: ", err)
 		return
@@ -126,7 +126,7 @@ func getParameter(req *http.Request) *messageParameter {
 }
 
 // https://api.weixin.qq.com/cgi-bin/component/api_component_token
-func (c *Component) GetComponentAccessToken(timeout int) (token *ComponentAccessToken, err error) {
+func (c *Component) GrantComponentAccessToken(timeout int) (token *ComponentAccessToken, err error) {
 	req := wx.HttpClient{
 		Path:        accessTokenURI,
 		ContentType: "application/json",
@@ -138,7 +138,7 @@ func (c *Component) GetComponentAccessToken(timeout int) (token *ComponentAccess
 		ComponentAppSecret    string `json:"component_appsecret"`
 		ComponentVerifyTicket string `json:"component_verify_token"`
 	}{
-		c.appID,
+		c.AppID,
 		c.appSecret,
 		c.storage.GetVerifyTicket(),
 	}
@@ -171,7 +171,7 @@ func (c *Component) GetPreAuthCode(timeout int) (code *PreAuthCode, err error) {
 
 	body := struct {
 		ComponentAppID string `json:"component_appid"`
-	}{c.appID}
+	}{c.AppID}
 
 	b, err := json.Marshal(body)
 	if err != nil {
@@ -203,7 +203,7 @@ func (c *Component) GetAuthorizationInfo(authorizationCode string, timeout int) 
 		ComponentAppID    string `json:"component_appid"`
 		AuthorizationCode string `json:"authorization_code"`
 	}{
-		c.appID,
+		c.AppID,
 		authorizationCode,
 	}
 
@@ -238,7 +238,7 @@ func (c *Component) RefreshAuthorizerToken(authorizerAppID string, timeout int) 
 		AuthorizerAppID        string `json:"authorizer_appid"`
 		AuthorizerRefreshToken string `json:"authorizer_refresh_token"`
 	}{
-		c.appID,
+		c.AppID,
 		authorizerAppID,
 		c.storage.GetAuthorizerToken(authorizerAppID).RefreshToken,
 	}
@@ -274,7 +274,7 @@ func (c *Component) GetAuthorizerInfo(authorizerAppID string, timeout int) (info
 		ComponentAppID  string `json:"component_appid"`
 		AuthorizerAppID string `json:"authorizer_appid"`
 	}{
-		c.appID,
+		c.AppID,
 		authorizerAppID,
 	}
 
@@ -309,7 +309,7 @@ func (c *Component) GetAuthorizerOption(authorizerAppID, optionName string, time
 		AuthorizerAppID string `json:"authorizer_appid"`
 		OptionName      string `json:"option_name"`
 	}{
-		c.appID,
+		c.AppID,
 		authorizerAppID,
 		optionName,
 	}
@@ -346,7 +346,7 @@ func (c *Component) SetAuthorizerOption(option *AuthorizerOption, timeout int) e
 		OptionName      string `json:"option_name"`
 		OptionValue     string `json:"option_value"`
 	}{
-		c.appID,
+		c.AppID,
 		option.AuthorizerAppID,
 		option.OptionName,
 		option.OptionValue,

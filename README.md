@@ -34,10 +34,9 @@ A WeChat openAPI wrapper for **Go**
 **微信网页授权**
 
 1. 配置公众号的授权回调页面域名，指向自己的服务器;
-2. 配置 sample/main.go 中的 appID 和 appSecret;
-3. 配置 sample/main.go 中的 address, helloURI 和 callbackURI, callbackURI 域名与上一步一致;
-4. 编译部署 sample 到服务器;
-5. 任意微信号关注公众号后，访问 helloURI, 跳转至微信授权页面，用户同意后跳转 callbackURI, 获取用户信息后跳转回 helloURI, 正确显示用户昵称. (参见上节微信网页授权流程)
+2. 配置 sample/config.json, appID, secret, address, helloURI, callbackURI 必填, callbackURI 域名与上一步一致;
+3. 编译部署 sample 到服务器;
+4. 任意微信号关注公众号后，访问 helloURI, 跳转至微信授权页面，用户同意后跳转 callbackURI, 获取用户信息后跳转回 helloURI, 正确显示用户昵称. (参见上节微信网页授权流程)
 
 ## What to do
 

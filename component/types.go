@@ -5,19 +5,19 @@ import (
 )
 
 type Component struct {
-	appID          string
+	AppID          string
 	appSecret      string
 	encodingAESKey string
-	storage        ComponentStorage
+	storage        Storage
 	addresses      *NotifyConfig
 }
 
-func New(appid, appsecret, encodingAESKey string, storage ComponentStorage, address *NotifyConfig) *Component {
+func New(appid, appsecret, encodingAESKey string, storage Storage, address *NotifyConfig) *Component {
 	if storage == nil {
 		storage = newDefaultStorage()
 	}
 	return &Component{
-		appID:          appid,
+		AppID:          appid,
 		appSecret:      appsecret,
 		encodingAESKey: encodingAESKey,
 		addresses:      address,
@@ -25,9 +25,14 @@ func New(appid, appsecret, encodingAESKey string, storage ComponentStorage, addr
 	}
 }
 
+// implements useroauth.MPServer interface
+func (c Component) GetAccessToken() string {
+	return c.storage.GetAccessToken()
+}
+
 // ComponentStorage holds component ticket, access token, and authorizer codes,
 // and should be responsible for token refreshing.
-type ComponentStorage interface {
+type Storage interface {
 	SetVerifyTicket(ticket string, createAt int64)
 	GetVerifyTicket() string
 	SetAccessToken(token string, expiresIn int64)

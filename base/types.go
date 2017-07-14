@@ -1,22 +1,27 @@
 package base
 
-// MPService for wechat official account
-type MPService struct {
+// MPAccount for wechat official account
+type MPAccount struct {
 	appID  string
 	secret string
 	token  TokenStorage
 }
 
-// New MPService instance
-func New(appID, secret string, tokenStorage TokenStorage) *MPService {
+// New MPAccount instance
+func New(appID, secret string, tokenStorage TokenStorage) *MPAccount {
 	if tokenStorage == nil {
 		tokenStorage = newDefaultTokenStorage()
 	}
-	return &MPService{
+	return &MPAccount{
 		appID:  appID,
 		secret: secret,
 		token:  tokenStorage,
 	}
+}
+
+// implements useroauth.MPServer interface
+func (s MPAccount) GetAccessToken() string {
+	return s.token.Get()
 }
 
 // TokenStorage holds official account's access token, and is responsible for token refreshing.

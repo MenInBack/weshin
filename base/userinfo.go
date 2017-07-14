@@ -28,7 +28,7 @@ type UserInfo struct {
 
 // GetUserInfo with known openID
 // https://api.weixin.qq.com/cgi-bin/user/info?access_token=ACCESS_TOKEN&openid=OPENID&lang=zh_CN
-func (s *MPService) GetUserInfo(openID, lang string, timeout int) (userinfo *UserInfo, err error) {
+func (s *MPAccount) GetUserInfo(openID, lang string, timeout int) (userinfo *UserInfo, err error) {
 	if len(openID) <= 0 {
 		return nil, wx.ParameterError{InvalidParameter: "openID"}
 	}

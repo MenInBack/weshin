@@ -16,7 +16,7 @@ const (
 
 // GrantAccessToken for wechat mp
 // https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=APPID&secret=APPSECRET
-func (s *MPService) GrantAccessToken(timeout int) (token *MPAccessToken, err error) {
+func (s *MPAccount) GrantAccessToken(timeout int) (token *MPAccessToken, err error) {
 	req := wx.HttpClient{
 		Path:    accessTokenPath,
 		Timeout: timeout,

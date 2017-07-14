@@ -1,6 +1,11 @@
 package wx
 
 const (
+	ModeComponent = 1
+	ModeMP        = 2
+)
+
+const (
 	GrantTypeRefresh    = "refresh_token"
 	GrantTypeAuthorize  = "authorization_code"
 	GrantTypeCredential = "client_credential"
