@@ -1,39 +1,38 @@
-package useroauth
+package webapi
 
 import (
-	"github.com/MenInBack/weshin/base"
-	"github.com/MenInBack/weshin/component"
 	"github.com/MenInBack/weshin/wx"
 )
 
-// OAuth for user authorization
-type OAuth struct {
+// WebAPI for user authorization
+type WebAPI struct {
 	Mode        int32
 	AppID       string
 	ComponentID string
 	secret      string
-	server      MPServer
+	token       wx.TokenStorage
 }
 
-// New OAuth
-func New(appID, secret string, server MPServer) *OAuth {
-	o := &OAuth{
-		AppID:  appID,
-		secret: secret,
+// New WebAPI
+func New(appID, secret, componentID string) *WebAPI {
+	o := &WebAPI{
+		AppID:       appID,
+		secret:      secret,
+		ComponentID: componentID,
 	}
-	switch server.(type) {
-	case base.MPAccount:
+	if componentID == "" {
 		o.Mode = wx.ModeMP
-	case component.Component:
+	} else {
 		o.Mode = wx.ModeComponent
-		o.ComponentID = server.(component.Component).AppID
 	}
+
 	return o
 }
 
 // base.MPAccount or component.Component
 type MPServer interface {
-	GetAccessToken() string
+	// GetAccessToken() string
+	SetAPITicket(*wx.APITicket)
 }
 
 // UserAccessToken holds access token for user authorization

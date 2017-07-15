@@ -1,4 +1,4 @@
-package useroauth
+package webapi
 
 // wechat user oauth api
 // https://mp.weixin.qq.com/wiki/ 微信网页开发/微信网页授权
@@ -27,10 +27,10 @@ const (
 // JumpToAuth compose jump uri for user authorization.
 // callback to redirectURI should be handled by caller of this package
 // https://open.weixin.qq.com/connect/oauth2/authorize?appid=APPID&redirect_uri=REDIRECT_URI&response_type=code&scope=SCOPE&state=STATE#wechat_redirect
-func (o *OAuth) JumpToAuth(scope, redirectURI, state string) (jumpURL string, err error) {
+func (w *WebAPI) JumpToAuth(scope, redirectURI, state string) (jumpURL string, err error) {
 	u := bytes.NewBufferString(oAuthPath)
 	u.WriteString("?appid=")
-	u.WriteString(o.AppID)
+	u.WriteString(w.AppID)
 	u.WriteString("&redirect_uri=")
 	u.WriteString(url.QueryEscape(redirectURI))
 	u.WriteString("&response_type=code")
@@ -38,9 +38,9 @@ func (o *OAuth) JumpToAuth(scope, redirectURI, state string) (jumpURL string, er
 	u.WriteString(scope)
 	u.WriteString("&state=")
 	u.WriteString(state)
-	if o.Mode == wx.ModeComponent {
+	if w.Mode == wx.ModeComponent {
 		u.WriteString("&component_appid=")
-		u.WriteString(o.ComponentID)
+		u.WriteString(w.ComponentID)
 	}
 	u.WriteString("#wechat_redirect")
 
@@ -51,22 +51,22 @@ func (o *OAuth) JumpToAuth(scope, redirectURI, state string) (jumpURL string, er
 // GrantAuthorizeToken grant access token for user authorization
 // code is in callback request url after user agreed for oauth
 // https://api.weixin.qq.com/sns/oauth2/access_token?appid=APPID&secret=SECRET&code=CODE&grant_type=authorization_code
-func (o *OAuth) GrantAuthorizeToken(code string, timeout int) (token *UserAccessToken, err error) {
+func (w *WebAPI) GrantAuthorizeToken(code string, timeout int) (token *UserAccessToken, err error) {
 	log.Print("authorizing code: ", code)
 	var parameters []wx.QueryParameter
-	switch o.Mode {
+	switch w.Mode {
 	case wx.ModeComponent:
 		parameters = []wx.QueryParameter{
-			{"appid", o.AppID},
+			{"appid", w.AppID},
 			{"code", code},
 			{"grant_type", wx.GrantTypeAuthorize},
-			{"component_appid", o.ComponentID},
-			{"component_access_token", o.server.GetAccessToken()},
+			{"component_appid", w.ComponentID},
+			{"component_access_token", w.token.GetAccessToken()},
 		}
 	case wx.ModeMP:
 		parameters = []wx.QueryParameter{
-			{"appid", o.AppID},
-			{"secret", o.secret},
+			{"appid", w.AppID},
+			{"secret", w.secret},
 			{"code", code},
 			{"grant_type", wx.GrantTypeAuthorize},
 		}
@@ -87,22 +87,22 @@ func (o *OAuth) GrantAuthorizeToken(code string, timeout int) (token *UserAccess
 	return token, nil
 }
 
-// RefreshAuthorizeToken refresh access token for user authorization
+// RefreshAuthorizeToken refresh user authorization token
 // https://api.weixin.qq.com/sns/oauth2/refresh_token?appid=APPID&grant_type=refresh_token&refresh_token=REFRESH_TOKEN
-func (o *OAuth) RefreshAuthorizeToken(refreshToken string, timeout int) (token *UserAccessToken, err error) {
+func (w *WebAPI) RefreshAuthorizeToken(refreshToken string, timeout int) (token *UserAccessToken, err error) {
 	var parameters []wx.QueryParameter
-	switch o.Mode {
+	switch w.Mode {
 	case wx.ModeComponent:
 		parameters = []wx.QueryParameter{
-			{"appid", o.AppID},
+			{"appid", w.AppID},
 			{"grant_type", wx.GrantTypeRefresh},
 			{"refresh_token", refreshToken},
-			{"component_appid", o.ComponentID},
-			{"component_access_token", o.server.GetAccessToken()},
+			{"component_appid", w.ComponentID},
+			{"component_access_token", w.token.GetAccessToken()},
 		}
 	case wx.ModeMP:
 		parameters = []wx.QueryParameter{
-			{"appid", o.AppID},
+			{"appid", w.AppID},
 			{"grant_type", wx.GrantTypeRefresh},
 			{"refresh_token", refreshToken},
 		}
@@ -156,7 +156,7 @@ func GetUserInfo(openID, token, lang string, timeout int) (info *UserInfo, err e
 
 // VerifyAuthorizeToken validates user access token
 // https://api.weixin.qq.com/sns/auth?access_token=ACCESS_TOKEN&openid=OPENID
-func (o *OAuth) VerifyAuthorizeToken(openID, token string, timeout int) (valid bool, err error) {
+func (w *WebAPI) VerifyAuthorizeToken(openID, token string, timeout int) (valid bool, err error) {
 	req := wx.HttpClient{
 		Path:    verifyTokenPath,
 		Timeout: timeout,
