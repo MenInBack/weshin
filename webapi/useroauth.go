@@ -61,7 +61,7 @@ func (w *WebAPI) GrantAuthorizeToken(code string, timeout int) (token *UserAcces
 			{"code", code},
 			{"grant_type", wx.GrantTypeAuthorize},
 			{"component_appid", w.ComponentID},
-			{"component_access_token", w.token.GetAccessToken()},
+			{"component_access_token", w.GetAccessToken()},
 		}
 	case wx.ModeMP:
 		parameters = []wx.QueryParameter{
@@ -98,7 +98,7 @@ func (w *WebAPI) RefreshAuthorizeToken(refreshToken string, timeout int) (token 
 			{"grant_type", wx.GrantTypeRefresh},
 			{"refresh_token", refreshToken},
 			{"component_appid", w.ComponentID},
-			{"component_access_token", w.token.GetAccessToken()},
+			{"component_access_token", w.GetAccessToken()},
 		}
 	case wx.ModeMP:
 		parameters = []wx.QueryParameter{
@@ -127,7 +127,7 @@ func (w *WebAPI) RefreshAuthorizeToken(refreshToken string, timeout int) (token 
 // GetUserInfo get authorized user info
 // token is user access token granted earlier, not access token of mp account or component
 // https://api.weixin.qq.com/sns/userinfo?access_token=ACCESS_TOKEN&openid=OPENID&lang=zh_CN
-func GetUserInfo(openID, token, lang string, timeout int) (info *UserInfo, err error) {
+func GetUserInfo(openID, token, lang string, timeout int) (info *wx.UserInfo, err error) {
 	if lang == "" {
 		lang = wx.LangCN
 	} else if lang != wx.LangCN && lang != wx.LangTW && lang != wx.LangEN {
@@ -144,7 +144,7 @@ func GetUserInfo(openID, token, lang string, timeout int) (info *UserInfo, err e
 		},
 	}
 
-	info = new(UserInfo)
+	info = new(wx.UserInfo)
 	err = req.Get(info)
 	if err != nil {
 		log.Print("query user info failed: ", err)

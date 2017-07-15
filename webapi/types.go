@@ -10,15 +10,16 @@ type WebAPI struct {
 	AppID       string
 	ComponentID string
 	secret      string
-	token       wx.TokenStorage
+	wx.TokenStorage
 }
 
 // New WebAPI
-func New(appID, secret, componentID string) *WebAPI {
+func New(appID, secret, componentID string, token wx.TokenStorage) *WebAPI {
 	o := &WebAPI{
-		AppID:       appID,
-		secret:      secret,
-		ComponentID: componentID,
+		AppID:        appID,
+		secret:       secret,
+		ComponentID:  componentID,
+		TokenStorage: token,
 	}
 	if componentID == "" {
 		o.Mode = wx.ModeMP
@@ -29,12 +30,6 @@ func New(appID, secret, componentID string) *WebAPI {
 	return o
 }
 
-// base.MPAccount or component.Component
-type MPServer interface {
-	// GetAccessToken() string
-	SetAPITicket(*wx.APITicket)
-}
-
 // UserAccessToken holds access token for user authorization
 type UserAccessToken struct {
 	AccessToken  string `json:"access_token"`
@@ -42,17 +37,4 @@ type UserAccessToken struct {
 	ExpiresIn    int64  `json:"expires_in"`
 	OpenID       string `json:"openid"`
 	Scope        string `json:"scope"`
-}
-
-// UserInfo for authorized users
-type UserInfo struct {
-	OpenID     string   `json:"openid"`
-	Nickname   string   `json:"nickname"`
-	Sex        int      `json:"sex"`
-	Province   string   `json:"province"`
-	City       string   `json:"city"`
-	Country    string   `json:"country"`
-	HeadImgURL string   `json:"headimgurl"`
-	Privilege  []string `json:"privilege"`
-	UnionID    string   `json:"unionid"`
 }
