@@ -8,6 +8,7 @@ import (
 	"github.com/MenInBack/weshin/crypto"
 )
 
+// StartServerValidator responses server validation request from wechat.
 func StartServerValidator(address, path string) {
 	http.HandleFunc(path, serverValidator)
 	go http.ListenAndServe(address, nil)

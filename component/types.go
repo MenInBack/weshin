@@ -2,16 +2,19 @@ package component
 
 import (
 	"encoding/xml"
+	"github.com/MenInBack/weshin/wx"
 )
 
+// Component services in place of official accounts
 type Component struct {
 	AppID          string
 	appSecret      string
 	encodingAESKey string
-	storage        Storage
 	addresses      *NotifyConfig
+	Storage
 }
 
+// New Component instance
 func New(appid, appsecret, encodingAESKey string, storage Storage, address *NotifyConfig) *Component {
 	if storage == nil {
 		storage = newDefaultStorage()
@@ -21,28 +24,28 @@ func New(appid, appsecret, encodingAESKey string, storage Storage, address *Noti
 		appSecret:      appsecret,
 		encodingAESKey: encodingAESKey,
 		addresses:      address,
-		storage:        storage,
+		Storage:        storage,
 	}
 }
 
-// implements useroauth.MPServer interface
-func (c Component) GetAccessToken() string {
-	return c.storage.GetAccessToken()
-}
-
-// ComponentStorage holds component ticket, access token, and authorizer codes,
+// Storage holds component ticket, access token, and authorizer codes,
 // and should be responsible for token refreshing.
 type Storage interface {
-	SetVerifyTicket(ticket string, createAt int64)
-	GetVerifyTicket() string
-	SetAccessToken(token string, expiresIn int64)
-	GetAccessToken() string
+	// holds token
+	wx.TokenStorage
+
+	// holds ticket
+	wx.TicketStorage
+
+	// SetAuthorizerToken when authorized.
 	SetAuthorizerToken(token *AuthorizerToken)
+	// GetAuthorizerToken for querying authorizer info if authorized,
+	// should refresh authorizer token if expired.
 	GetAuthorizerToken(authorizerAppID string) *AuthorizerToken
+	// ClearAuthorizertoken when authorization cancelled.
 	ClearAuthorizertoken(authorizerAppID string)
+
 	SetAuthorizationCode(code *AuthorizationCode)
-	// GetAuthorizationCode(authorizerAppID string) *AuthorizationCode
-	// ClearAuthorization(authorizerAppID string)
 }
 
 // AuthorizationCode holds authorizer code
@@ -57,20 +60,6 @@ type NotifyConfig struct {
 	Address           string
 	VerifyTicketPath  string
 	AuthorizationPath string
-}
-
-// <xml>
-// <AppId> </AppId>
-// <CreateTime>1413192605 </CreateTime>
-// <InfoType> </InfoType>
-// <ComponentVerifyTicket> </ComponentVerifyTicket>
-// </xml>
-type ComponentVerifyTicket struct {
-	XMLName               xml.Name `xml:"xml"`
-	AppID                 string   `xml:"AppId"`
-	CreateTime            int64    `xml:"CreateTime"`
-	InfoType              string   `xml:"InfoType"`
-	ComponentVerifyTicket string   `xml:"ComponentVerifyTicket"`
 }
 
 // {
@@ -90,8 +79,8 @@ type PreAuthCode struct {
 
 // authorization token info
 type AuthorizationTokenInfo struct {
-	AuthorizationInfo AuthorizerToken `json:"authorization_info"`
-	FuncInfo          []FunctionInfo  `json:"func_info"`
+	AuthorizationToken AuthorizerToken `json:"authorization_info"`
+	FuncInfo           []FunctionInfo  `json:"func_info"`
 }
 
 type AuthorizerToken struct {
@@ -161,10 +150,10 @@ type authorizationNotifyBody struct {
 	AuthorizationCode
 }
 
-// defaultStorage implements ComponentStorage by local variables
+// defaultStorage implements Storage using local variables
 type defaultStorage struct {
-	ticket            string
-	ticketCreateAt    int64
+	verifyTicket      string
+	jsAPITicket       string
 	token             string
 	tokenExpireAt     int64
 	authorizationCode map[string]*AuthorizationCode
@@ -176,15 +165,6 @@ func newDefaultStorage() *defaultStorage {
 		authorizationCode: make(map[string]*AuthorizationCode),
 		authorizerToken:   make(map[string]*AuthorizerToken),
 	}
-}
-
-func (s *defaultStorage) SetVerifyTicket(ticket string, createAt int64) {
-	s.ticket = ticket
-	s.ticketCreateAt = createAt
-}
-
-func (s *defaultStorage) GetVerifyTicket() string {
-	return s.ticket
 }
 
 func (s *defaultStorage) SetAccessToken(token string, expiresIn int64) {
@@ -210,4 +190,23 @@ func (s *defaultStorage) SetAuthorizerToken(token *AuthorizerToken) {
 
 func (s *defaultStorage) ClearAuthorizertoken(authorizerAppID string) {
 	delete(s.authorizerToken, authorizerAppID)
+}
+
+func (s *defaultStorage) SetAPITicket(ticket *wx.APITicket) {
+	switch ticket.Typ {
+	case wx.TicketTypeJSPAI:
+		s.jsAPITicket = ticket.Ticket
+	case wx.TicketTypeVerify:
+		s.verifyTicket = ticket.Ticket
+	}
+}
+
+func (s *defaultStorage) GetAPITicket(typ string) string {
+	switch typ {
+	case wx.TicketTypeJSPAI:
+		return s.jsAPITicket
+	case wx.TicketTypeVerify:
+		return s.verifyTicket
+	}
+	return ""
 }

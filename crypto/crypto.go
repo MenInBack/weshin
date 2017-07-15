@@ -8,15 +8,11 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"crypto/sha1"
 	"encoding/base64"
 	"encoding/binary"
-	"encoding/hex"
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"sort"
-	"strings"
 )
 
 const (
@@ -119,6 +115,7 @@ func (mc *MessageCrypto) Decrypt(src []byte, signature, nonce, timestamp string)
 	} else {
 		mc.timeStamp = encrypted.TimeStamp
 	}
+	mc.userName = encrypted.FromUserName.Data
 
 	//2.validate signature
 	sign := mc.signature([]byte(encrypted.Encrypt.Data))
@@ -257,13 +254,4 @@ type CryptoError struct {
 
 func (e CryptoError) Error() string {
 	return fmt.Sprintf("crypto error - %s: %s", e.Detail, e.Err.Error())
-}
-
-// Signature signature generator for wechat message
-func Signature(message []string) []byte {
-	sort.Strings(message)
-	sum := sha1.Sum([]byte(strings.Join(message, "")))
-	data := make([]byte, hex.EncodedLen(len(sum)))
-	hex.Encode(data, sum[:])
-	return data
 }

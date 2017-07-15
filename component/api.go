@@ -28,6 +28,20 @@ func (c *Component) StartNotifyHandler() error {
 	return nil
 }
 
+// <xml>
+// <AppId> </AppId>
+// <CreateTime>1413192605 </CreateTime>
+// <InfoType> </InfoType>
+// <ComponentVerifyTicket> </ComponentVerifyTicket>
+// </xml>
+type componentVerifyTicket struct {
+	XMLName               xml.Name `xml:"xml"`
+	AppID                 string   `xml:"AppId"`
+	CreateTime            int64    `xml:"CreateTime"`
+	InfoType              string   `xml:"InfoType"`
+	ComponentVerifyTicket string   `xml:"ComponentVerifyTicket"`
+}
+
 func (c *Component) verifyTicketHandler(w http.ResponseWriter, req *http.Request) {
 	log.Println("got verify ticket req")
 
@@ -39,7 +53,7 @@ func (c *Component) verifyTicketHandler(w http.ResponseWriter, req *http.Request
 
 	// decrypt
 	p := getParameter(req)
-	encoding, err := crypto.New(c.encodingAESKey, c.storage.GetAccessToken(), c.AppID)
+	encoding, err := crypto.New(c.encodingAESKey, c.GetAccessToken(), c.AppID)
 	if err != nil {
 		log.Println("crypto.New error: ", err)
 		return
@@ -50,7 +64,7 @@ func (c *Component) verifyTicketHandler(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	var reqBody ComponentVerifyTicket
+	var reqBody componentVerifyTicket
 	err = xml.Unmarshal(data, &reqBody)
 	if err != nil {
 		log.Println("xml.Unmarshal error: ", err)
@@ -60,7 +74,11 @@ func (c *Component) verifyTicketHandler(w http.ResponseWriter, req *http.Request
 	log.Printf("request body: %+v\n", reqBody)
 	w.Write([]byte("success"))
 
-	go c.storage.SetVerifyTicket(reqBody.ComponentVerifyTicket, reqBody.CreateTime)
+	go c.SetAPITicket(&wx.APITicket{
+		Typ:      wx.TicketTypeVerify,
+		Ticket:   reqBody.ComponentVerifyTicket,
+		CreateAt: reqBody.CreateTime,
+	})
 }
 
 func (c *Component) authorizationNotifyHandler(w http.ResponseWriter, req *http.Request) {
@@ -74,7 +92,7 @@ func (c *Component) authorizationNotifyHandler(w http.ResponseWriter, req *http.
 
 	// decrypt
 	p := getParameter(req)
-	encoding, err := crypto.New(c.encodingAESKey, c.storage.GetAccessToken(), c.AppID)
+	encoding, err := crypto.New(c.encodingAESKey, c.GetAccessToken(), c.AppID)
 	if err != nil {
 		log.Println("crypto.New error: ", err)
 		return
@@ -97,13 +115,13 @@ func (c *Component) authorizationNotifyHandler(w http.ResponseWriter, req *http.
 
 	switch reqBody.InfoType {
 	case NotifyTypeAuthorized, NotifyTypeUpdateAuthorized:
-		go c.storage.SetAuthorizationCode(&AuthorizationCode{
+		go c.SetAuthorizationCode(&AuthorizationCode{
 			AppID:       reqBody.AuthorizationCode.AppID,
 			Code:        reqBody.AuthorizationCode.Code,
 			ExpiredTime: reqBody.AuthorizationCode.ExpiredTime,
 		})
 	case NotifyTypeUnauthorized:
-		go c.storage.ClearAuthorizertoken(reqBody.AuthorizationCode.AppID)
+		go c.ClearAuthorizertoken(reqBody.AuthorizationCode.AppID)
 	}
 
 }
@@ -140,7 +158,7 @@ func (c *Component) GrantComponentAccessToken(timeout int) (token *ComponentAcce
 	}{
 		c.AppID,
 		c.appSecret,
-		c.storage.GetVerifyTicket(),
+		c.GetAPITicket(wx.TicketTypeVerify),
 	}
 
 	b, err := json.Marshal(body)
@@ -155,6 +173,8 @@ func (c *Component) GrantComponentAccessToken(timeout int) (token *ComponentAcce
 		return nil, err
 	}
 
+	go c.SetAccessToken(token.Token, token.ExpiresIn)
+
 	return token, nil
 }
 
@@ -164,7 +184,7 @@ func (c *Component) GetPreAuthCode(timeout int) (code *PreAuthCode, err error) {
 		Path:        preAuthCodeURI,
 		ContentType: "application/json",
 		Parameters: []wx.QueryParameter{{
-			"component_access_token", c.storage.GetAccessToken(),
+			"component_access_token", c.GetAccessToken(),
 		}},
 		Timeout: timeout,
 	}
@@ -194,7 +214,7 @@ func (c *Component) GetAuthorizationInfo(authorizationCode string, timeout int) 
 		Path:        authorizationInfoURI,
 		ContentType: "application/json",
 		Parameters: []wx.QueryParameter{{
-			"component_access_token", c.storage.GetAccessToken(),
+			"component_access_token", c.GetAccessToken(),
 		}},
 		Timeout: timeout,
 	}
@@ -219,6 +239,8 @@ func (c *Component) GetAuthorizationInfo(authorizationCode string, timeout int) 
 		return nil, err
 	}
 
+	go c.SetAuthorizerToken(&auth.AuthorizationToken)
+
 	return auth, nil
 }
 
@@ -228,7 +250,7 @@ func (c *Component) RefreshAuthorizerToken(authorizerAppID string, timeout int) 
 		Path:        authorizerTokenURI,
 		ContentType: "application/json",
 		Parameters: []wx.QueryParameter{{
-			"component_access_token", c.storage.GetAccessToken(),
+			"component_access_token", c.GetAccessToken(),
 		}},
 		Timeout: timeout,
 	}
@@ -240,7 +262,7 @@ func (c *Component) RefreshAuthorizerToken(authorizerAppID string, timeout int) 
 	}{
 		c.AppID,
 		authorizerAppID,
-		c.storage.GetAuthorizerToken(authorizerAppID).RefreshToken,
+		c.GetAuthorizerToken(authorizerAppID).RefreshToken,
 	}
 
 	b, err := json.Marshal(body)
@@ -256,6 +278,8 @@ func (c *Component) RefreshAuthorizerToken(authorizerAppID string, timeout int) 
 	}
 	token.AppID = authorizerAppID
 
+	go c.SetAuthorizerToken(token)
+
 	return token, nil
 }
 
@@ -265,7 +289,7 @@ func (c *Component) GetAuthorizerInfo(authorizerAppID string, timeout int) (info
 		Path:        authorizerInfoURI,
 		ContentType: "application/json",
 		Parameters: []wx.QueryParameter{{
-			"component_access_token", c.storage.GetAccessToken(),
+			"component_access_token", c.GetAccessToken(),
 		}},
 		Timeout: timeout,
 	}
@@ -299,7 +323,7 @@ func (c *Component) GetAuthorizerOption(authorizerAppID, optionName string, time
 		Path:        getAuthorizerOptionURI,
 		ContentType: "application/json",
 		Parameters: []wx.QueryParameter{{
-			"component_access_token", c.storage.GetAccessToken(),
+			"component_access_token", c.GetAccessToken(),
 		}},
 		Timeout: timeout,
 	}
@@ -335,7 +359,7 @@ func (c *Component) SetAuthorizerOption(option *AuthorizerOption, timeout int) e
 		Path:        setAuthorizerOptionURI,
 		ContentType: "application/json",
 		Parameters: []wx.QueryParameter{{
-			"component_access_token", c.storage.GetAccessToken(),
+			"component_access_token", c.GetAccessToken(),
 		}},
 		Timeout: timeout,
 	}

@@ -1,38 +1,31 @@
 package base
 
+import (
+	"github.com/MenInBack/weshin/wx"
+)
+
 // MPAccount for wechat official account
 type MPAccount struct {
-	appID  string
+	AppID  string
 	secret string
-	token  TokenStorage
+	wx.TokenStorage
 }
 
 // New MPAccount instance
-func New(appID, secret string, tokenStorage TokenStorage) *MPAccount {
+func New(appID, secret string, tokenStorage wx.TokenStorage) *MPAccount {
 	if tokenStorage == nil {
 		tokenStorage = newDefaultTokenStorage()
 	}
 	return &MPAccount{
-		appID:  appID,
-		secret: secret,
-		token:  tokenStorage,
+		AppID:        appID,
+		secret:       secret,
+		TokenStorage: tokenStorage,
 	}
-}
-
-// implements useroauth.MPServer interface
-func (s MPAccount) GetAccessToken() string {
-	return s.token.Get()
-}
-
-// TokenStorage holds official account's access token, and is responsible for token refreshing.
-type TokenStorage interface {
-	Set(token string, expriresIn int64)
-	Get() string
 }
 
 type MPAccessToken struct {
 	AccessToken string `json:"access_token"`
-	ExpiresIn   int    `json:"expires_in"`
+	ExpiresIn   int64  `json:"expires_in"`
 }
 
 // implements TokenStorage, without refreshing.
@@ -44,10 +37,10 @@ func newDefaultTokenStorage() *defaultStorage {
 	return new(defaultStorage)
 }
 
-func (s *defaultStorage) Set(token string, expriresIn int64) {
+func (s *defaultStorage) SetAccessToken(token string, expriresIn int64) {
 	s.token = token
 }
 
-func (s *defaultStorage) Get() string {
+func (s *defaultStorage) GetAccessToken() string {
 	return s.token
 }
