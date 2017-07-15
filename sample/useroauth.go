@@ -55,7 +55,7 @@ func Hello(w http.ResponseWriter, req *http.Request) {
 
 	if name == "" {
 		log.Print("unknown user")
-		api := webapi.New(config.AppID, config.Secret, "", nil)
+		api := webapi.New(config.AppID, config.Secret, "", nil, nil)
 		jumpURI, err := api.JumpToAuth(wx.OAUthScopeUserInfo, config.CallbackURI, defaultState)
 		if err != nil {
 			log.Print("jumpURI error: ", err)
@@ -85,7 +85,7 @@ func OAuthCallback(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	api := webapi.New(config.AppID, config.Secret, "", nil)
+	api := webapi.New(config.AppID, config.Secret, "", nil, nil)
 	token, err := api.GrantAuthorizeToken(code, 0)
 	if err != nil {
 		log.Fatal(err)
