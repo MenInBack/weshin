@@ -5,7 +5,6 @@ package webapi
 
 import (
 	"bytes"
-	"log"
 	"net/url"
 
 	"github.com/MenInBack/weshin/wx"
@@ -44,7 +43,6 @@ func (w *WebAPI) JumpToAuth(scope, redirectURI, state string) (jumpURL string, e
 	}
 	u.WriteString("#wechat_redirect")
 
-	log.Print("jump uri for authorization: ", u.String())
 	return u.String(), nil
 }
 
@@ -52,7 +50,6 @@ func (w *WebAPI) JumpToAuth(scope, redirectURI, state string) (jumpURL string, e
 // code is in callback request url after user agreed for oauth
 // https://api.weixin.qq.com/sns/oauth2/access_token?appid=APPID&secret=SECRET&code=CODE&grant_type=authorization_code
 func (w *WebAPI) GrantAuthorizeToken(code string, timeout int) (token *UserAccessToken, err error) {
-	log.Print("authorizing code: ", code)
 	var parameters []wx.QueryParameter
 	switch w.Mode {
 	case wx.ModeComponent:
@@ -80,7 +77,6 @@ func (w *WebAPI) GrantAuthorizeToken(code string, timeout int) (token *UserAcces
 	token = new(UserAccessToken)
 	err = req.Get(token)
 	if err != nil {
-		log.Print("authorize code failed: ", err)
 		return nil, err
 	}
 
@@ -117,7 +113,6 @@ func (w *WebAPI) RefreshAuthorizeToken(refreshToken string, timeout int) (token 
 	token = new(UserAccessToken)
 	err = req.Get(token)
 	if err != nil {
-		log.Print("refresh token failed: ", err)
 		return nil, err
 	}
 
@@ -138,7 +133,6 @@ func (w *WebAPI) VerifyAuthorizeToken(openID, token string, timeout int) (valid 
 
 	err = req.Get(nil)
 	if err != nil {
-		log.Print("verify user access token failed: ", err)
 		return false, err
 	}
 
@@ -168,7 +162,6 @@ func (w *WebAPI) GetUserInfo(openID, lang string, timeout int) (info *wx.UserInf
 	info = new(wx.UserInfo)
 	err = req.Get(info)
 	if err != nil {
-		log.Print("query user info failed: ", err)
 		return nil, err
 	}
 

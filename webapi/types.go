@@ -11,15 +11,17 @@ type WebAPI struct {
 	ComponentID string
 	secret      string
 	wx.TokenStorage
+	wx.TicketStorage
 }
 
 // New WebAPI
-func New(appID, secret, componentID string, token wx.TokenStorage) *WebAPI {
+func New(appID, secret, componentID string, token wx.TokenStorage, ticket wx.TicketStorage) *WebAPI {
 	o := &WebAPI{
-		AppID:        appID,
-		secret:       secret,
-		ComponentID:  componentID,
-		TokenStorage: token,
+		AppID:         appID,
+		secret:        secret,
+		ComponentID:   componentID,
+		TokenStorage:  token,
+		TicketStorage: ticket,
 	}
 	if componentID == "" {
 		o.Mode = wx.ModeMP

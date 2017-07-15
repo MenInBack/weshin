@@ -29,5 +29,7 @@ func (s *WebAPI) GetJSAPITicket(token string, timeout int) (*wx.APITicket, error
 		return nil, err
 	}
 
+	go s.SetAPITicket(ticket)
+
 	return ticket, nil
 }

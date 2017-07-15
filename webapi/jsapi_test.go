@@ -5,23 +5,18 @@ import (
 	"testing"
 )
 
-const (
-	appID  = ""
-	secret = ""
-)
-
 func TestJSAPI(t *testing.T) {
 	mp := base.New(appID, secret, nil)
-	_, err := mp.GrantAccessToken(0)
+	token, err := mp.GrantAccessToken(0)
 	if err != nil {
 		t.Error(err)
 	}
+	t.Logf("got token: %+v", token)
 
-	api := New(appID, secret, mp)
-	ticket, err := api.GetJSAPITicket(0)
-	if err != nil(
+	api := New(appID, secret, "", nil, mp.Storage)
+	ticket, err := api.GetJSAPITicket(mp.GetAccessToken(), 0)
+	if err != nil {
 		t.Error(err)
-	)
-	
-
+	}
+	t.Logf("got ticket: %+v", ticket)
 }

@@ -8,18 +8,18 @@ import (
 type MPAccount struct {
 	AppID  string
 	secret string
-	wx.TokenStorage
+	Storage
 }
 
 // New MPAccount instance
-func New(appID, secret string, tokenStorage wx.TokenStorage) *MPAccount {
-	if tokenStorage == nil {
-		tokenStorage = newDefaultTokenStorage()
+func New(appID, secret string, storage Storage) *MPAccount {
+	if storage == nil {
+		storage = newDefaultStorage()
 	}
 	return &MPAccount{
-		AppID:        appID,
-		secret:       secret,
-		TokenStorage: tokenStorage,
+		AppID:   appID,
+		secret:  secret,
+		Storage: storage,
 	}
 }
 
@@ -28,12 +28,18 @@ type MPAccessToken struct {
 	ExpiresIn   int64  `json:"expires_in"`
 }
 
-// implements TokenStorage, without refreshing.
-type defaultStorage struct {
-	token string
+type Storage interface {
+	wx.TokenStorage
+	wx.TicketStorage
 }
 
-func newDefaultTokenStorage() *defaultStorage {
+// implements TokenStorage, without refreshing.
+type defaultStorage struct {
+	token       string
+	jsAPITicket string
+}
+
+func newDefaultStorage() *defaultStorage {
 	return new(defaultStorage)
 }
 
@@ -43,4 +49,17 @@ func (s *defaultStorage) SetAccessToken(token string, expriresIn int64) {
 
 func (s *defaultStorage) GetAccessToken() string {
 	return s.token
+}
+
+func (s *defaultStorage) SetAPITicket(ticket *wx.APITicket) {
+	if ticket.Typ == wx.TicketTypeJSPAI {
+		s.jsAPITicket = ticket.Ticket
+	}
+}
+
+func (s *defaultStorage) GetAPITicket(typ string) string {
+	if typ == wx.TicketTypeJSPAI {
+		return s.jsAPITicket
+	}
+	return ""
 }
