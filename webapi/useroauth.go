@@ -124,36 +124,6 @@ func (w *WebAPI) RefreshAuthorizeToken(refreshToken string, timeout int) (token 
 	return token, err
 }
 
-// GetUserInfo get authorized user info
-// token is user access token granted earlier, not access token of mp account or component
-// https://api.weixin.qq.com/sns/userinfo?access_token=ACCESS_TOKEN&openid=OPENID&lang=zh_CN
-func GetUserInfo(openID, token, lang string, timeout int) (info *wx.UserInfo, err error) {
-	if lang == "" {
-		lang = wx.LangCN
-	} else if lang != wx.LangCN && lang != wx.LangTW && lang != wx.LangEN {
-		return nil, wx.ParameterError{InvalidParameter: "lang"}
-	}
-
-	req := wx.HttpClient{
-		Path:    userinfoPath,
-		Timeout: timeout,
-		Parameters: []wx.QueryParameter{
-			{"access_token", token},
-			{"openid", openID},
-			{"lang", lang},
-		},
-	}
-
-	info = new(wx.UserInfo)
-	err = req.Get(info)
-	if err != nil {
-		log.Print("query user info failed: ", err)
-		return nil, err
-	}
-
-	return info, err
-}
-
 // VerifyAuthorizeToken validates user access token
 // https://api.weixin.qq.com/sns/auth?access_token=ACCESS_TOKEN&openid=OPENID
 func (w *WebAPI) VerifyAuthorizeToken(openID, token string, timeout int) (valid bool, err error) {
@@ -173,4 +143,34 @@ func (w *WebAPI) VerifyAuthorizeToken(openID, token string, timeout int) (valid 
 	}
 
 	return true, nil
+}
+
+// GetUserInfo get authorized user info
+// token is user access token granted earlier, not access token of mp account or component
+// https://api.weixin.qq.com/sns/userinfo?access_token=ACCESS_TOKEN&openid=OPENID&lang=zh_CN
+func (w *WebAPI) GetUserInfo(openID, lang string, timeout int) (info *wx.UserInfo, err error) {
+	if lang == "" {
+		lang = wx.LangCN
+	} else if lang != wx.LangCN && lang != wx.LangTW && lang != wx.LangEN {
+		return nil, wx.ParameterError{InvalidParameter: "lang"}
+	}
+
+	req := wx.HttpClient{
+		Path:    userinfoPath,
+		Timeout: timeout,
+		Parameters: []wx.QueryParameter{
+			{"access_token", w.GetAccessToken()},
+			{"openid", openID},
+			{"lang", lang},
+		},
+	}
+
+	info = new(wx.UserInfo)
+	err = req.Get(info)
+	if err != nil {
+		log.Print("query user info failed: ", err)
+		return nil, err
+	}
+
+	return info, err
 }

@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/MenInBack/weshin/useroauth"
+	"github.com/MenInBack/weshin/webapi"
 	"github.com/MenInBack/weshin/wx"
 )
 
@@ -55,8 +55,8 @@ func Hello(w http.ResponseWriter, req *http.Request) {
 
 	if name == "" {
 		log.Print("unknown user")
-		oAuth := useroauth.New(config.AppID, config.Secret)
-		jumpURI, err := oAuth.JumpToAuth(wx.OAUthScopeUserInfo, config.CallbackURI, defaultState)
+		api := webapi.New(config.AppID, config.Secret, "", nil)
+		jumpURI, err := api.JumpToAuth(wx.OAUthScopeUserInfo, config.CallbackURI, defaultState)
 		if err != nil {
 			log.Print("jumpURI error: ", err)
 			return
@@ -85,14 +85,14 @@ func OAuthCallback(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	oAuth := useroauth.New(config.AppID, config.Secret)
-	token, err := oAuth.GrantAuthorizeToken(code, 0)
+	api := webapi.New(config.AppID, config.Secret, "", nil)
+	token, err := api.GrantAuthorizeToken(code, 0)
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Printf("got access token %+v", token)
 
-	userinfo, err := useroauth.GetUserInfo(token.OpenID, token.AccessToken, "", 0)
+	userinfo, err := api.GetUserInfo(token.OpenID, "", 0)
 	if err != nil {
 		log.Print("GetUserInfo error: ", err)
 		return
