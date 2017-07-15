@@ -1,5 +1,4 @@
 [![Build Status](https://travis-ci.org/MenInBack/weshin.svg?branch=master)](https://travis-ci.org/MenInBack/weshin)
-[![Coverage Status](https://coveralls.io/repos/github/MenInBack/weshin/badge.svg?branch=master)](https://coveralls.io/github/MenInBack/weshin?branch=master)
 
 # weshin
 
@@ -7,23 +6,24 @@ A WeChat openAPI wrapper for **Go**
 
 ## 功能
 
-### 微信公众号基础功能(base)
+### 微信公众号基础功能
 
 - [获取 access_token](https://mp.weixin.qq.com/wiki?t=resource/res_main&id=mp1421140183)
 - [响应微信服务器校验请求](https://mp.weixin.qq.com/wiki?t=resource/res_main&id=mp1421135319)
 - [获取已授权用户信息](https://mp.weixin.qq.com/wiki?t=resource/res_main&id=mp1421140839)
 
-### 微信网页授权(useroauth)
+### 微信网页开发
 
+- 微信网页授权
 [微信网页授权流程](https://mp.weixin.qq.com/wiki?t=resource/res_main&id=mp1421140842)
-
 ![微信网页授权流程](./doc/authorization.png)
+- 微信 JSAPI_TICKET
 
-### 第三方平台授权(component)
+### 第三方平台授权
 
 [授权流程技术说明](https://open.weixin.qq.com/cgi-bin/showdocument?action=dir_list&t=resource/res_list&verify=1&id=open1453779503&token=&lang=zh_CN)
 
-### 微信消息加解密(crypto)
+### 微信消息加解密
 
 [微信消息加解密技术方案](https://open.weixin.qq.com/cgi-bin/showdocument?action=dir_list&t=resource/res_list&verify=1&id=open1419318482&token=&lang=zh_CN)
 
