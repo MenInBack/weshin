@@ -34,5 +34,5 @@ type TicketStorage interface {
 	// SetAPITicket for verify ticket or js_api ticket.
 	SetAPITicket(*APITicket)
 	// GetAPITicket for verify ticket or js_api ticket.
-	// GetAPITicket(typ string) string
+	GetAPITicket(typ string) string
 }

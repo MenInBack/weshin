@@ -245,7 +245,7 @@ func (c *Component) GetAuthorizationInfo(authorizationCode string, timeout int) 
 }
 
 // https://api.weixin.qq.com/cgi-bin/component/api_authorizer_token?component_access_token=xxxxx
-func (c *Component) RefreshAuthorizerToken(authorizerAppID string, timeout int) (token *AuthorizerToken, err error) {
+func (c *Component) RefreshAuthorizerToken(authorizerAppID, refreshToken string, timeout int) (token *AuthorizerToken, err error) {
 	req := wx.HttpClient{
 		Path:        authorizerTokenURI,
 		ContentType: "application/json",
@@ -262,7 +262,7 @@ func (c *Component) RefreshAuthorizerToken(authorizerAppID string, timeout int) 
 	}{
 		c.AppID,
 		authorizerAppID,
-		c.GetAuthorizerToken(authorizerAppID).RefreshToken,
+		refreshToken,
 	}
 
 	b, err := json.Marshal(body)

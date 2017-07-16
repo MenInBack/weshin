@@ -41,7 +41,7 @@ type Storage interface {
 	SetAuthorizerToken(token *AuthorizerToken)
 	// GetAuthorizerToken for querying authorizer info if authorized,
 	// should refresh authorizer token if expired.
-	GetAuthorizerToken(authorizerAppID string) *AuthorizerToken
+	GetAuthorizerToken(authorizerAppID string) string
 	// ClearAuthorizertoken when authorization cancelled.
 	ClearAuthorizertoken(authorizerAppID string)
 
@@ -180,8 +180,8 @@ func (s *defaultStorage) SetAuthorizationCode(code *AuthorizationCode) {
 	s.authorizationCode[code.AppID] = code
 }
 
-func (s *defaultStorage) GetAuthorizerToken(authorizerAppID string) *AuthorizerToken {
-	return s.authorizerToken[authorizerAppID]
+func (s *defaultStorage) GetAuthorizerToken(authorizerAppID string) string {
+	return s.authorizerToken[authorizerAppID].AccessToken
 }
 
 func (s *defaultStorage) SetAuthorizerToken(token *AuthorizerToken) {
