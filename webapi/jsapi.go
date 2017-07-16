@@ -5,6 +5,8 @@ package webapi
 // https://open.weixin.qq.com/cgi-bin/showdocument?action=dir_list&t=resource/res_list&verify=1&id=open1421823488&token=&lang=zh_CN
 
 import (
+	"time"
+
 	"github.com/MenInBack/weshin/wx"
 )
 
@@ -12,8 +14,10 @@ const (
 	jsAPITicketURI = "https://api.weixin.qq.com/cgi-bin/ticket/getticket"
 )
 
+// GetJSAPITicket for js_api config
+// for component mode, token is authorizer access token, not component access token.
 // https://api.weixin.qq.com/cgi-bin/ticket/getticket?access_token=ACCESS_TOKEN&type=jsapi
-func (s *WebAPI) GetJSAPITicket(token string, timeout int) (*wx.APITicket, error) {
+func (s *WebAPI) GetJSAPITicket(appID, token string, timeout int) (*wx.APITicket, error) {
 	req := wx.HttpClient{
 		Path: jsAPITicketURI,
 		Parameters: []wx.QueryParameter{
@@ -28,6 +32,9 @@ func (s *WebAPI) GetJSAPITicket(token string, timeout int) (*wx.APITicket, error
 	if err != nil {
 		return nil, err
 	}
+	ticket.AppID = appID
+	ticket.Typ = wx.TicketTypeJSPAI
+	ticket.CreateAt = time.Now().Unix()
 
 	go s.SetAPITicket(ticket)
 

@@ -2,6 +2,7 @@ package webapi
 
 import (
 	"github.com/MenInBack/weshin/base"
+	"log"
 	"testing"
 )
 
@@ -11,12 +12,12 @@ func TestJSAPI(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	t.Logf("got token: %+v", token)
+	log.Printf("got token: %+v\n", token)
 
 	api := New(appID, secret, "", nil, mp.Storage)
-	ticket, err := api.GetJSAPITicket(mp.GetAccessToken(), 0)
+	ticket, err := api.GetJSAPITicket(mp.AppID, mp.GetAccessToken(), 0)
 	if err != nil {
 		t.Error(err)
 	}
-	t.Logf("got ticket: %+v", ticket)
+	log.Printf("got ticket: %+v\n", ticket)
 }

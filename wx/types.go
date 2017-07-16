@@ -14,6 +14,7 @@ type UserInfo struct {
 
 type APITicket struct {
 	Typ       string `json:"-"`
+	AppID     string `json:"-"`
 	Ticket    string `json:"ticket,omitempty"`
 	CreateAt  int64  `json:"create_at,omitempty"`
 	ExpiresIn int64  `json:"expires_in,omitempty"`
@@ -33,5 +34,5 @@ type TicketStorage interface {
 	// SetAPITicket for verify ticket or js_api ticket.
 	SetAPITicket(*APITicket)
 	// GetAPITicket for verify ticket or js_api ticket.
-	GetAPITicket(typ string) string
+	// GetAPITicket(typ string) string
 }
