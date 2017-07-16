@@ -41,7 +41,7 @@ type Storage interface {
 	SetAuthorizerToken(token *AuthorizerToken)
 	// GetAuthorizerToken for querying authorizer info if authorized,
 	// should refresh authorizer token if expired.
-	GetAuthorizerToken(authorizerAppID string) string
+	// GetAuthorizerToken(authorizerAppID string) string
 	// ClearAuthorizertoken when authorization cancelled.
 	ClearAuthorizertoken(authorizerAppID string)
 
