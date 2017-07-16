@@ -11,19 +11,17 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 
 	"github.com/MenInBack/weshin/crypto"
 	"github.com/MenInBack/weshin/wx"
 )
 
 func (c *Component) StartNotifyHandler() error {
-	if c.addresses == nil {
-		return wx.ParameterError{InvalidParameter: "notify address config"}
-	}
-	log.Println("starting http service on: ", c.addresses.Address)
-	http.HandleFunc(c.addresses.VerifyTicketPath, c.verifyTicketHandler)
-	http.HandleFunc(c.addresses.AuthorizationPath, c.authorizationNotifyHandler)
-	go http.ListenAndServe(c.addresses.Address, nil)
+	log.Println("starting http service on: ", c.address.Address)
+	http.HandleFunc(c.address.VerifyTicketPath, c.verifyTicketHandler)
+	http.HandleFunc(c.address.AuthorizationPath, c.authorizationNotifyHandler)
+	go http.ListenAndServe(c.address.Address, nil)
 
 	return nil
 }
@@ -121,7 +119,7 @@ func (c *Component) authorizationNotifyHandler(w http.ResponseWriter, req *http.
 			ExpiredTime: reqBody.AuthorizationCode.ExpiredTime,
 		})
 	case NotifyTypeUnauthorized:
-		go c.ClearAuthorizertoken(reqBody.AuthorizationCode.AppID)
+		go c.ClearAuthorizerToken(reqBody.AuthorizationCode.AppID)
 	}
 
 }
@@ -206,6 +204,18 @@ func (c *Component) GetPreAuthCode(timeout int) (code *PreAuthCode, err error) {
 	}
 
 	return code, nil
+}
+
+//https://mp.weixin.qq.com/cgi-bin/componentloginpage?component_appid=xxxx&pre_auth_code=xxxxx&redirect_uri=xxxx
+func (c *Component) JumpToOAuth(preAuthCode string) string {
+	uri := bytes.NewBufferString(authorizeURI)
+	uri.WriteString("?component_appid=")
+	uri.WriteString(c.AppID)
+	uri.WriteString("&pre_auth_code=")
+	uri.WriteString(preAuthCode)
+	uri.WriteString("&redirect_uri=")
+	uri.WriteString(url.QueryEscape(c.address.AuthRedirectURI))
+	return uri.String()
 }
 
 // https://api.weixin.qq.com/cgi-bin/component/api_query_auth?component_access_token=xxxx

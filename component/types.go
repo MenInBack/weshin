@@ -10,7 +10,7 @@ type Component struct {
 	AppID          string
 	appSecret      string
 	encodingAESKey string
-	addresses      *NotifyConfig
+	address        *NotifyConfig
 	Storage
 }
 
@@ -23,8 +23,8 @@ func New(appid, appsecret, encodingAESKey string, storage Storage, address *Noti
 		AppID:          appid,
 		appSecret:      appsecret,
 		encodingAESKey: encodingAESKey,
-		addresses:      address,
 		Storage:        storage,
+		address:        address,
 	}
 }
 
@@ -43,7 +43,7 @@ type Storage interface {
 	// should refresh authorizer token if expired.
 	// GetAuthorizerToken(authorizerAppID string) string
 	// ClearAuthorizertoken when authorization cancelled.
-	ClearAuthorizertoken(authorizerAppID string)
+	ClearAuthorizerToken(authorizerAppID string)
 
 	SetAuthorizationCode(code *AuthorizationCode)
 }
@@ -60,6 +60,7 @@ type NotifyConfig struct {
 	Address           string
 	VerifyTicketPath  string
 	AuthorizationPath string
+	AuthRedirectURI   string
 }
 
 // {
@@ -188,7 +189,7 @@ func (s *defaultStorage) SetAuthorizerToken(token *AuthorizerToken) {
 	s.authorizerToken[token.AppID] = token
 }
 
-func (s *defaultStorage) ClearAuthorizertoken(authorizerAppID string) {
+func (s *defaultStorage) ClearAuthorizerToken(authorizerAppID string) {
 	delete(s.authorizerToken, authorizerAppID)
 }
 
