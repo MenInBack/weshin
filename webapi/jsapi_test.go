@@ -1,21 +1,30 @@
 package webapi
 
 import (
-	"github.com/MenInBack/weshin/base"
 	"log"
 	"testing"
+
+	"github.com/MenInBack/weshin/base"
+	"github.com/MenInBack/weshin/wx"
 )
 
 func TestJSAPI(t *testing.T) {
-	mp := base.New(appID, secret, nil)
+	mp := base.MP{
+		AppID:   appID,
+		Secret:  secret,
+		Storage: new(sampleStorage),
+	}
 	token, err := mp.GrantAccessToken(0)
 	if err != nil {
 		t.Error(err)
 	}
 	log.Printf("got token: %+v\n", token)
 
-	api := New(appID, secret, "", nil, mp.Storage)
-	ticket, err := api.GetJSAPITicket(mp.AppID, mp.GetAccessToken(), 0)
+	api := WebAPI{
+		Mode:     wx.ModeMP,
+		WechatMP: mp,
+	}
+	ticket, err := api.GetJSAPITicket(mp.AppID, 0)
 	if err != nil {
 		t.Error(err)
 	}

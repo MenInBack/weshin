@@ -20,6 +20,15 @@ type APITicket struct {
 	ExpiresIn int64  `json:"expires_in,omitempty"`
 }
 
+type WechatMP interface {
+	GetAppID() string
+	GetSecret() string
+	GetEncodingAESKey() string
+
+	TokenStorage
+	TicketStorage
+}
+
 // TokenStorage holds access token
 type TokenStorage interface {
 	// SetAccessToken is called inside GrantAccessToken to update access token,

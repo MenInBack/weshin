@@ -169,8 +169,13 @@ func (mc *MessageCrypto) messagePadding(msg []byte) ([]byte, error) {
 	data.Write(size.Bytes())
 	data.Write(msg)
 	data.Write([]byte(mc.AppID))
-	buf := pkcs7Padding(data.Bytes())
-	return buf, nil
+
+	l := data.Len()
+	padding := aesKeySize - l%aesKeySize
+	for i := 0; i < padding; i++ {
+		data.WriteByte(byte(padding))
+	}
+	return data.Bytes(), nil
 }
 
 func (mc *MessageCrypto) messageUnpadding(src []byte) ([]byte, error) {
@@ -202,20 +207,6 @@ func (mc *MessageCrypto) messageUnpadding(src []byte) ([]byte, error) {
 // msg_signature=sha1(sort(Token、timestamp、nonce, msg_encrypt))
 func (mc *MessageCrypto) signature(encrypt []byte) []byte {
 	return Signature([]string{mc.Token, mc.timeStamp, mc.nonce, string(encrypt)})
-}
-
-func pkcs7Padding(buf []byte) []byte {
-	l := len(buf)
-	padding := aesKeySize - l%aesKeySize
-	n := l + padding // faster way to grow a slice to a desired capacity
-	for cap(buf) < n {
-		buf = append(buf[:cap(buf)], 0)
-	}
-	buf = buf[:n]
-	for ; l < n; l++ {
-		buf[l] = byte(padding)
-	}
-	return buf
 }
 
 type encryptedMessage struct {

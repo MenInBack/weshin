@@ -3,6 +3,7 @@ package webapi
 import (
 	"testing"
 
+	"github.com/MenInBack/weshin/base"
 	"github.com/MenInBack/weshin/wx"
 )
 
@@ -14,10 +15,49 @@ const (
 )
 
 func TestJumpURL(t *testing.T) {
-	webAPI := New(appID, secret, "", nil, nil)
-	jumpURI, err := webAPI.JumpToAuth(wx.OAUthScopeUserInfo, redirectURI, state)
+	mp := base.MP{
+		AppID:   appID,
+		Secret:  secret,
+		Storage: new(sampleStorage),
+	}
+	api := WebAPI{
+		Mode:     wx.ModeMP,
+		WechatMP: mp,
+	}
+	jumpURI, err := api.JumpToAuth(wx.OAUthScopeUserInfo, redirectURI, state)
 	if err != nil {
 		t.Error(err)
 	}
 	t.Log(jumpURI)
+}
+
+// implements TokenStorage, without refreshing.
+type sampleStorage struct {
+	token       string
+	jsAPITicket string
+}
+
+func newsampleStorage() *sampleStorage {
+	return new(sampleStorage)
+}
+
+func (s *sampleStorage) SetAccessToken(token string, expriresIn int64) {
+	s.token = token
+}
+
+func (s *sampleStorage) GetAccessToken() string {
+	return s.token
+}
+
+func (s *sampleStorage) SetAPITicket(ticket *wx.APITicket) {
+	if ticket.Typ == wx.TicketTypeJSPAI {
+		s.jsAPITicket = ticket.Ticket
+	}
+}
+
+func (s *sampleStorage) GetAPITicket(typ string) string {
+	if typ == wx.TicketTypeJSPAI {
+		return s.jsAPITicket
+	}
+	return ""
 }

@@ -18,10 +18,10 @@ import (
 )
 
 func (c *Component) StartNotifyHandler() error {
-	log.Println("starting http service on: ", c.address.Address)
-	http.HandleFunc(c.address.VerifyTicketPath, c.verifyTicketHandler)
-	http.HandleFunc(c.address.AuthorizationPath, c.authorizationNotifyHandler)
-	go http.ListenAndServe(c.address.Address, nil)
+	log.Println("starting http service on: ", c.Address.Address)
+	http.HandleFunc(c.Address.VerifyTicketPath, c.verifyTicketHandler)
+	http.HandleFunc(c.Address.AuthorizationPath, c.authorizationNotifyHandler)
+	go http.ListenAndServe(c.Address.Address, nil)
 
 	return nil
 }
@@ -51,7 +51,7 @@ func (c *Component) verifyTicketHandler(w http.ResponseWriter, req *http.Request
 
 	// decrypt
 	p := getParameter(req)
-	encoding, err := crypto.New(c.encodingAESKey, c.GetAccessToken(), c.AppID)
+	encoding, err := crypto.New(c.EncodingAESKey, c.GetAccessToken(), c.AppID)
 	if err != nil {
 		log.Println("crypto.New error: ", err)
 		return
@@ -90,7 +90,7 @@ func (c *Component) authorizationNotifyHandler(w http.ResponseWriter, req *http.
 
 	// decrypt
 	p := getParameter(req)
-	encoding, err := crypto.New(c.encodingAESKey, c.GetAccessToken(), c.AppID)
+	encoding, err := crypto.New(c.EncodingAESKey, c.GetAccessToken(), c.AppID)
 	if err != nil {
 		log.Println("crypto.New error: ", err)
 		return
@@ -155,7 +155,7 @@ func (c *Component) GrantComponentAccessToken(timeout int) (token *ComponentAcce
 		ComponentVerifyTicket string `json:"component_verify_token"`
 	}{
 		c.AppID,
-		c.appSecret,
+		c.Secret,
 		c.GetAPITicket(wx.TicketTypeVerify),
 	}
 
@@ -214,7 +214,7 @@ func (c *Component) JumpToOAuth(preAuthCode string) string {
 	uri.WriteString("&pre_auth_code=")
 	uri.WriteString(preAuthCode)
 	uri.WriteString("&redirect_uri=")
-	uri.WriteString(url.QueryEscape(c.address.AuthRedirectURI))
+	uri.WriteString(url.QueryEscape(c.Address.AuthRedirectURI))
 	return uri.String()
 }
 

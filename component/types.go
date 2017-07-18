@@ -8,24 +8,21 @@ import (
 // Component services in place of official accounts
 type Component struct {
 	AppID          string
-	appSecret      string
-	encodingAESKey string
-	address        *NotifyConfig
+	Secret         string
+	EncodingAESKey string
+	Address        *NotifyConfig
 	Storage
 }
 
-// New Component instance
-func New(appid, appsecret, encodingAESKey string, storage Storage, address *NotifyConfig) *Component {
-	if storage == nil {
-		storage = newDefaultStorage()
-	}
-	return &Component{
-		AppID:          appid,
-		appSecret:      appsecret,
-		encodingAESKey: encodingAESKey,
-		Storage:        storage,
-		address:        address,
-	}
+// implements wx.MPAccount
+func (c Component) GetAppID() string {
+	return c.AppID
+}
+func (c Component) GetSecret() string {
+	return c.Secret
+}
+func (c Component) GetEncodingAESKey() string {
+	return c.EncodingAESKey
 }
 
 // Storage holds component ticket, access token, and authorizer codes,
@@ -41,7 +38,7 @@ type Storage interface {
 	SetAuthorizerToken(token *AuthorizerToken)
 	// GetAuthorizerToken for querying authorizer info if authorized,
 	// should refresh authorizer token if expired.
-	// GetAuthorizerToken(authorizerAppID string) string
+	GetAuthorizerToken(authorizerAppID string) string
 	// ClearAuthorizertoken when authorization cancelled.
 	ClearAuthorizerToken(authorizerAppID string)
 
@@ -149,65 +146,4 @@ type authorizationNotifyBody struct {
 	CreateTime int64    `json:"createTime,omitempty" xml:"createTime,cdata"`
 	InfoType   string   `json:"infoType,omitempty" xml:"infoType,cdata"`
 	AuthorizationCode
-}
-
-// defaultStorage implements Storage using local variables
-type defaultStorage struct {
-	verifyTicket      string
-	jsAPITicket       string
-	token             string
-	tokenExpireAt     int64
-	authorizationCode map[string]*AuthorizationCode
-	authorizerToken   map[string]*AuthorizerToken
-}
-
-func newDefaultStorage() *defaultStorage {
-	return &defaultStorage{
-		authorizationCode: make(map[string]*AuthorizationCode),
-		authorizerToken:   make(map[string]*AuthorizerToken),
-	}
-}
-
-func (s *defaultStorage) SetAccessToken(token string, expiresIn int64) {
-	s.token = token
-	s.tokenExpireAt = expiresIn
-}
-
-func (s *defaultStorage) GetAccessToken() string {
-	return s.token
-}
-
-func (s *defaultStorage) SetAuthorizationCode(code *AuthorizationCode) {
-	s.authorizationCode[code.AppID] = code
-}
-
-func (s *defaultStorage) GetAuthorizerToken(authorizerAppID string) string {
-	return s.authorizerToken[authorizerAppID].AccessToken
-}
-
-func (s *defaultStorage) SetAuthorizerToken(token *AuthorizerToken) {
-	s.authorizerToken[token.AppID] = token
-}
-
-func (s *defaultStorage) ClearAuthorizerToken(authorizerAppID string) {
-	delete(s.authorizerToken, authorizerAppID)
-}
-
-func (s *defaultStorage) SetAPITicket(ticket *wx.APITicket) {
-	switch ticket.Typ {
-	case wx.TicketTypeJSPAI:
-		s.jsAPITicket = ticket.Ticket
-	case wx.TicketTypeVerify:
-		s.verifyTicket = ticket.Ticket
-	}
-}
-
-func (s *defaultStorage) GetAPITicket(typ string) string {
-	switch typ {
-	case wx.TicketTypeJSPAI:
-		return s.jsAPITicket
-	case wx.TicketTypeVerify:
-		return s.verifyTicket
-	}
-	return ""
 }

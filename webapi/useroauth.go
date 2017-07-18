@@ -29,7 +29,7 @@ const (
 func (w *WebAPI) JumpToAuth(scope, redirectURI, state string) (jumpURL string, err error) {
 	u := bytes.NewBufferString(oAuthPath)
 	u.WriteString("?appid=")
-	u.WriteString(w.AppID)
+	u.WriteString(w.GetAppID())
 	u.WriteString("&redirect_uri=")
 	u.WriteString(url.QueryEscape(redirectURI))
 	u.WriteString("&response_type=code")
@@ -54,7 +54,7 @@ func (w *WebAPI) GrantAuthorizeToken(code string, timeout int) (token *UserAcces
 	switch w.Mode {
 	case wx.ModeComponent:
 		parameters = []wx.QueryParameter{
-			{"appid", w.AppID},
+			{"appid", w.GetAppID()},
 			{"code", code},
 			{"grant_type", wx.GrantTypeAuthorize},
 			{"component_appid", w.ComponentID},
@@ -62,8 +62,8 @@ func (w *WebAPI) GrantAuthorizeToken(code string, timeout int) (token *UserAcces
 		}
 	case wx.ModeMP:
 		parameters = []wx.QueryParameter{
-			{"appid", w.AppID},
-			{"secret", w.secret},
+			{"appid", w.GetAppID()},
+			{"secret", w.GetSecret()},
 			{"code", code},
 			{"grant_type", wx.GrantTypeAuthorize},
 		}
@@ -90,7 +90,7 @@ func (w *WebAPI) RefreshAuthorizeToken(refreshToken string, timeout int) (token 
 	switch w.Mode {
 	case wx.ModeComponent:
 		parameters = []wx.QueryParameter{
-			{"appid", w.AppID},
+			{"appid", w.GetAppID()},
 			{"grant_type", wx.GrantTypeRefresh},
 			{"refresh_token", refreshToken},
 			{"component_appid", w.ComponentID},
@@ -98,7 +98,7 @@ func (w *WebAPI) RefreshAuthorizeToken(refreshToken string, timeout int) (token 
 		}
 	case wx.ModeMP:
 		parameters = []wx.QueryParameter{
-			{"appid", w.AppID},
+			{"appid", w.GetAppID()},
 			{"grant_type", wx.GrantTypeRefresh},
 			{"refresh_token", refreshToken},
 		}

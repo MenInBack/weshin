@@ -3,6 +3,8 @@ package base
 import (
 	"log"
 	"testing"
+
+	"github.com/MenInBack/weshin/wx"
 )
 
 // 可使用公众平台接口测试号
@@ -14,7 +16,11 @@ const (
 )
 
 func TestAccessToken(t *testing.T) {
-	mp := New(appID, secret, nil)
+	mp := MP{
+		AppID:   appID,
+		Secret:  secret,
+		Storage: new(sampleStorage),
+	}
 	token, err := mp.GrantAccessToken(0)
 	if err != nil {
 		t.Error("grant access token failed: ", err)
@@ -23,7 +29,11 @@ func TestAccessToken(t *testing.T) {
 }
 
 func TestGetUserInfo(t *testing.T) {
-	mp := New(appID, secret, nil)
+	mp := MP{
+		AppID:   appID,
+		Secret:  secret,
+		Storage: new(sampleStorage),
+	}
 	token, err := mp.GrantAccessToken(0)
 	if err != nil {
 		t.Error("grant access token failed: ", err)
@@ -35,4 +45,35 @@ func TestGetUserInfo(t *testing.T) {
 		t.Error("get userinfo failed: ", err)
 	}
 	log.Printf("got user info: %+v", info)
+}
+
+// implements TokenStorage, without refreshing.
+type sampleStorage struct {
+	token       string
+	jsAPITicket string
+}
+
+func newsampleStorage() *sampleStorage {
+	return new(sampleStorage)
+}
+
+func (s *sampleStorage) SetAccessToken(token string, expriresIn int64) {
+	s.token = token
+}
+
+func (s *sampleStorage) GetAccessToken() string {
+	return s.token
+}
+
+func (s *sampleStorage) SetAPITicket(ticket *wx.APITicket) {
+	if ticket.Typ == wx.TicketTypeJSPAI {
+		s.jsAPITicket = ticket.Ticket
+	}
+}
+
+func (s *sampleStorage) GetAPITicket(typ string) string {
+	if typ == wx.TicketTypeJSPAI {
+		return s.jsAPITicket
+	}
+	return ""
 }
