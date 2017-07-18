@@ -48,7 +48,7 @@ func (s *sampleStorage) ClearAuthorizerToken(authorizerAppID string) {
 
 func (s *sampleStorage) SetAPITicket(ticket *wx.APITicket) {
 	switch ticket.Typ {
-	case wx.TicketTypeJSPAI:
+	case wx.TicketTypeJSAPI:
 		s.jsAPITicket = ticket.Ticket
 	case wx.TicketTypeVerify:
 		s.verifyTicket = ticket.Ticket
@@ -57,7 +57,7 @@ func (s *sampleStorage) SetAPITicket(ticket *wx.APITicket) {
 
 func (s *sampleStorage) GetAPITicket(typ string) string {
 	switch typ {
-	case wx.TicketTypeJSPAI:
+	case wx.TicketTypeJSAPI:
 		return s.jsAPITicket
 	case wx.TicketTypeVerify:
 		return s.verifyTicket

@@ -9,7 +9,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 
@@ -17,13 +16,11 @@ import (
 	"github.com/MenInBack/weshin/wx"
 )
 
-func (c *Component) StartNotifyHandler() error {
-	log.Println("starting http service on: ", c.Address.Address)
+func (c *Component) StartNotifyHandler() {
 	http.HandleFunc(c.Address.VerifyTicketPath, c.verifyTicketHandler)
 	http.HandleFunc(c.Address.AuthorizationPath, c.authorizationNotifyHandler)
+	c.Errors = make(chan error)
 	go http.ListenAndServe(c.Address.Address, nil)
-
-	return nil
 }
 
 // <xml>
@@ -41,11 +38,9 @@ type componentVerifyTicket struct {
 }
 
 func (c *Component) verifyTicketHandler(w http.ResponseWriter, req *http.Request) {
-	log.Println("got verify ticket req")
-
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		log.Println("ioutil.ReadAll error: ", err)
+		c.Errors <- NotifyError{wx.TicketHander, err}
 		return
 	}
 
@@ -53,23 +48,23 @@ func (c *Component) verifyTicketHandler(w http.ResponseWriter, req *http.Request
 	p := getParameter(req)
 	encoding, err := crypto.New(c.EncodingAESKey, c.GetAccessToken(), c.AppID)
 	if err != nil {
-		log.Println("crypto.New error: ", err)
+		c.Errors <- wx.NotifyError{wx.TicketHander, err}
 		return
 	}
 	data, err := encoding.Decrypt(body, p.signature, p.nonce, p.timestamp)
 	if err != nil {
-		log.Println("encoding.Decrypt error: ", err)
+		c.Errors <- wx.NotifyError{wx.TicketHander, err}
 		return
 	}
 
 	var reqBody componentVerifyTicket
 	err = xml.Unmarshal(data, &reqBody)
 	if err != nil {
-		log.Println("xml.Unmarshal error: ", err)
+		c.Errors <- NotifyError{wx.TicketHander, err}
 		return
 	}
 
-	log.Printf("request body: %+v\n", reqBody)
+	c.Errors <- err
 	w.Write([]byte("success"))
 
 	go c.SetAPITicket(&wx.APITicket{
@@ -80,11 +75,9 @@ func (c *Component) verifyTicketHandler(w http.ResponseWriter, req *http.Request
 }
 
 func (c *Component) authorizationNotifyHandler(w http.ResponseWriter, req *http.Request) {
-	log.Println("got authorization notify")
-
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		log.Println("ioutile.ReadAll error: ", err)
+		c.Errors <- wx.NotifyError{wx.AuthorizerHander, err}
 		return
 	}
 
@@ -92,32 +85,39 @@ func (c *Component) authorizationNotifyHandler(w http.ResponseWriter, req *http.
 	p := getParameter(req)
 	encoding, err := crypto.New(c.EncodingAESKey, c.GetAccessToken(), c.AppID)
 	if err != nil {
-		log.Println("crypto.New error: ", err)
+		c.Errors <- wx.NotifyError{wx.AuthorizerHander, err}
 		return
 	}
 	data, err := encoding.Decrypt(body, p.signature, p.nonce, p.timestamp)
 	if err != nil {
-		log.Println("encoding.Decrypt error: ", err)
+		c.Errors <- wx.NotifyError{wx.AuthorizerHander, err}
 		return
 	}
 
 	var reqBody authorizationNotifyBody
 	err = xml.Unmarshal(data, &reqBody)
 	if err != nil {
-		log.Println("xml.Unmarshal error: ", err)
+		c.Errors <- wx.NotifyError{wx.AuthorizerHander, err}
 		return
 	}
 
-	log.Printf("request body: %+v\n", reqBody)
 	w.Write([]byte("success"))
 
 	switch reqBody.InfoType {
 	case NotifyTypeAuthorized, NotifyTypeUpdateAuthorized:
-		go c.SetAuthorizationCode(&AuthorizationCode{
-			AppID:       reqBody.AuthorizationCode.AppID,
-			Code:        reqBody.AuthorizationCode.Code,
-			ExpiredTime: reqBody.AuthorizationCode.ExpiredTime,
-		})
+		// go c.SetAuthorizationCode(&AuthorizationCode{
+		// 	AppID:       reqBody.AuthorizationCode.AppID,
+		// 	Code:        reqBody.AuthorizationCode.Code,
+		// 	ExpiredTime: reqBody.AuthorizationCode.ExpiredTime,
+		// })
+		go func() {
+			tokenInfo, err := c.MPAuthorize(reqBody.AppID, 0)
+			if err != nil {
+				c.Errors <- wx.NotifyError{wx.AuthorizerHander, err}
+				return
+			}
+			go c.SetAuthorizationInfo(tokenInfo)
+		}()
 	case NotifyTypeUnauthorized:
 		go c.ClearAuthorizerToken(reqBody.AuthorizationCode.AppID)
 	}
@@ -219,7 +219,7 @@ func (c *Component) JumpToOAuth(preAuthCode string) string {
 }
 
 // https://api.weixin.qq.com/cgi-bin/component/api_query_auth?component_access_token=xxxx
-func (c *Component) GetAuthorizationInfo(authorizationCode string, timeout int) (auth *AuthorizationTokenInfo, err error) {
+func (c *Component) MPAuthorize(authorizationCode string, timeout int) (auth *AuthorizationTokenInfo, err error) {
 	req := wx.HttpClient{
 		Path:        authorizationInfoURI,
 		ContentType: "application/json",

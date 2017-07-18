@@ -38,6 +38,23 @@ func (e HttpError) Error() string {
 	return fmt.Sprintf("http error: [%d] %s", e.State, http.StatusText(e.State))
 }
 
+// NotifyError for async notifies
+type NotifyError struct {
+	Handler string
+	Err     error
+}
+
+func (e NotifyError) Error() string {
+	return fmt.Sprintf("error when handling %s: %s", e.Handler, e.Err.Error())
+}
+
+// handler names for NotifyError
+const (
+	TicketHander     = "verify ticket"
+	AuthorizerHander = "authorizer"
+	UserAuthHandler  = "user authorization"
+)
+
 // ConfigError for invalid configuration
 type ConfigError struct {
 	InvalidConfig string

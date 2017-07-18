@@ -2,6 +2,8 @@ package component
 
 import (
 	"encoding/xml"
+	"fmt"
+
 	"github.com/MenInBack/weshin/wx"
 )
 
@@ -10,6 +12,7 @@ type Component struct {
 	AppID          string
 	Secret         string
 	EncodingAESKey string
+	Errors         chan error
 	Address        *NotifyConfig
 	Storage
 }
@@ -42,7 +45,17 @@ type Storage interface {
 	// ClearAuthorizertoken when authorization cancelled.
 	ClearAuthorizerToken(authorizerAppID string)
 
-	SetAuthorizationCode(code *AuthorizationCode)
+	// SetAuthorizationInfo after authorized
+	SetAuthorizationInfo(*AuthorizationTokenInfo)
+}
+
+type NotifyError struct {
+	handler string
+	err     error
+}
+
+func (e NotifyError) Error() string {
+	return fmt.Sprintf("error when handling %s: %s", e.handler, e.err.Error())
 }
 
 // AuthorizationCode holds authorizer code
