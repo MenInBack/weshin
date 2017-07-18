@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/MenInBack/weshin/base"
 	"github.com/MenInBack/weshin/webapi"
 	"github.com/MenInBack/weshin/wx"
 )
@@ -23,6 +24,9 @@ var config struct {
 	CallbackURI string `json:"callbackURI,omitempty"`
 }
 
+var mp base.MP
+var api webapi.WebAPI
+
 func init() {
 	file, err := os.Open("config.json")
 	if err != nil {
@@ -37,6 +41,17 @@ func init() {
 	err = json.Unmarshal(data, &config)
 	if err != nil {
 		log.Fatal("json.Unmarshal error: ", err)
+	}
+
+	mp = base.MP{
+		AppID:   config.AppID,
+		Secret:  config.Secret,
+		Storage: new(sampleStorage),
+	}
+
+	api = webapi.WebAPI{
+		Mode:     wx.ModeMP,
+		WechatMP: mp,
 	}
 }
 
@@ -55,7 +70,6 @@ func Hello(w http.ResponseWriter, req *http.Request) {
 
 	if name == "" {
 		log.Print("unknown user")
-		api := webapi.New(config.AppID, config.Secret, "", nil, nil)
 		jumpURI, err := api.JumpToAuth(wx.OAUthScopeUserInfo, config.CallbackURI, defaultState)
 		if err != nil {
 			log.Print("jumpURI error: ", err)
@@ -85,7 +99,6 @@ func OAuthCallback(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	api := webapi.New(config.AppID, config.Secret, "", nil, nil)
 	token, err := api.GrantAuthorizeToken(code, 0)
 	if err != nil {
 		log.Fatal(err)
@@ -101,4 +114,35 @@ func OAuthCallback(w http.ResponseWriter, req *http.Request) {
 	log.Print("got user info: ", userinfo)
 
 	http.Redirect(w, req, config.HelloURI+"?name="+userinfo.Nickname, http.StatusSeeOther)
+}
+
+// implements TokenStorage, without refreshing.
+type sampleStorage struct {
+	token       string
+	jsAPITicket string
+}
+
+func newsampleStorage() *sampleStorage {
+	return new(sampleStorage)
+}
+
+func (s *sampleStorage) SetAccessToken(token string, expriresIn int64) {
+	s.token = token
+}
+
+func (s *sampleStorage) GetAccessToken() string {
+	return s.token
+}
+
+func (s *sampleStorage) SetAPITicket(ticket *wx.APITicket) {
+	if ticket.Typ == wx.TicketTypeJSPAI {
+		s.jsAPITicket = ticket.Ticket
+	}
+}
+
+func (s *sampleStorage) GetAPITicket(typ string) string {
+	if typ == wx.TicketTypeJSPAI {
+		return s.jsAPITicket
+	}
+	return ""
 }
