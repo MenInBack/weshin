@@ -31,7 +31,7 @@ func (s *WebAPI) GetJSAPITicket(appID string, timeout int) (*wx.APITicket, error
 		Path: jsAPITicketURI,
 		Parameters: []wx.QueryParameter{
 			{"access_token", token},
-			{"type", wx.TicketTypeJSPAI},
+			{"type", wx.TicketTypeJSAPI},
 		},
 		Timeout: timeout,
 	}
@@ -42,7 +42,7 @@ func (s *WebAPI) GetJSAPITicket(appID string, timeout int) (*wx.APITicket, error
 		return nil, err
 	}
 	ticket.AppID = appID
-	ticket.Typ = wx.TicketTypeJSPAI
+	ticket.Typ = wx.TicketTypeJSAPI
 	ticket.CreateAt = time.Now().Unix()
 
 	go s.SetAPITicket(ticket)

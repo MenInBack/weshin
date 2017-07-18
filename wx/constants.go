@@ -8,7 +8,7 @@ const (
 
 // ticket type
 const (
-	TicketTypeJSPAI  = "jsapi"
+	TicketTypeJSAPI  = "jsapi"
 	TicketTypeVerify = "component_verify_ticket"
 )
 

@@ -135,13 +135,13 @@ func (s *sampleStorage) GetAccessToken() string {
 }
 
 func (s *sampleStorage) SetAPITicket(ticket *wx.APITicket) {
-	if ticket.Typ == wx.TicketTypeJSPAI {
+	if ticket.Typ == wx.TicketTypeJSAPI {
 		s.jsAPITicket = ticket.Ticket
 	}
 }
 
 func (s *sampleStorage) GetAPITicket(typ string) string {
-	if typ == wx.TicketTypeJSPAI {
+	if typ == wx.TicketTypeJSAPI {
 		return s.jsAPITicket
 	}
 	return ""
