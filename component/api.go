@@ -19,7 +19,7 @@ import (
 func (c *Component) StartNotifyHandler() {
 	http.HandleFunc(c.Address.VerifyTicketPath, c.verifyTicketHandler)
 	http.HandleFunc(c.Address.AuthorizationPath, c.authorizationNotifyHandler)
-	c.Errors = make(chan error)
+	c.NotifyErrors = make(chan error)
 	go http.ListenAndServe(c.Address.Address, nil)
 }
 
@@ -40,7 +40,7 @@ type componentVerifyTicket struct {
 func (c *Component) verifyTicketHandler(w http.ResponseWriter, req *http.Request) {
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		c.Errors <- NotifyError{wx.TicketHander, err}
+		c.NotifyErrors <- NotifyError{wx.TicketHander, err}
 		return
 	}
 
@@ -48,23 +48,22 @@ func (c *Component) verifyTicketHandler(w http.ResponseWriter, req *http.Request
 	p := getParameter(req)
 	encoding, err := crypto.New(c.EncodingAESKey, c.GetAccessToken(), c.AppID)
 	if err != nil {
-		c.Errors <- wx.NotifyError{wx.TicketHander, err}
+		c.NotifyErrors <- wx.NotifyError{wx.TicketHander, err}
 		return
 	}
 	data, err := encoding.Decrypt(body, p.signature, p.nonce, p.timestamp)
 	if err != nil {
-		c.Errors <- wx.NotifyError{wx.TicketHander, err}
+		c.NotifyErrors <- wx.NotifyError{wx.TicketHander, err}
 		return
 	}
 
 	var reqBody componentVerifyTicket
 	err = xml.Unmarshal(data, &reqBody)
 	if err != nil {
-		c.Errors <- NotifyError{wx.TicketHander, err}
+		c.NotifyErrors <- NotifyError{wx.TicketHander, err}
 		return
 	}
 
-	c.Errors <- err
 	w.Write([]byte("success"))
 
 	go c.SetAPITicket(&wx.APITicket{
@@ -77,7 +76,7 @@ func (c *Component) verifyTicketHandler(w http.ResponseWriter, req *http.Request
 func (c *Component) authorizationNotifyHandler(w http.ResponseWriter, req *http.Request) {
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		c.Errors <- wx.NotifyError{wx.AuthorizerHander, err}
+		c.NotifyErrors <- wx.NotifyError{wx.AuthorizerHander, err}
 		return
 	}
 
@@ -85,19 +84,19 @@ func (c *Component) authorizationNotifyHandler(w http.ResponseWriter, req *http.
 	p := getParameter(req)
 	encoding, err := crypto.New(c.EncodingAESKey, c.GetAccessToken(), c.AppID)
 	if err != nil {
-		c.Errors <- wx.NotifyError{wx.AuthorizerHander, err}
+		c.NotifyErrors <- wx.NotifyError{wx.AuthorizerHander, err}
 		return
 	}
 	data, err := encoding.Decrypt(body, p.signature, p.nonce, p.timestamp)
 	if err != nil {
-		c.Errors <- wx.NotifyError{wx.AuthorizerHander, err}
+		c.NotifyErrors <- wx.NotifyError{wx.AuthorizerHander, err}
 		return
 	}
 
 	var reqBody authorizationNotifyBody
 	err = xml.Unmarshal(data, &reqBody)
 	if err != nil {
-		c.Errors <- wx.NotifyError{wx.AuthorizerHander, err}
+		c.NotifyErrors <- wx.NotifyError{wx.AuthorizerHander, err}
 		return
 	}
 
@@ -113,7 +112,7 @@ func (c *Component) authorizationNotifyHandler(w http.ResponseWriter, req *http.
 		go func() {
 			tokenInfo, err := c.MPAuthorize(reqBody.AppID, 0)
 			if err != nil {
-				c.Errors <- wx.NotifyError{wx.AuthorizerHander, err}
+				c.NotifyErrors <- wx.NotifyError{wx.AuthorizerHander, err}
 				return
 			}
 			go c.SetAuthorizationInfo(tokenInfo)
