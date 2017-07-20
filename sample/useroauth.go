@@ -52,6 +52,7 @@ func init() {
 	api = webapi.WebAPI{
 		Mode:     wx.ModeMP,
 		WechatMP: mp,
+		AppID:    config.AppID,
 	}
 }
 
@@ -70,11 +71,7 @@ func Hello(w http.ResponseWriter, req *http.Request) {
 
 	if name == "" {
 		log.Print("unknown user")
-		jumpURI, err := api.JumpToAuth(wx.OAUthScopeUserInfo, config.CallbackURI, defaultState)
-		if err != nil {
-			log.Print("jumpURI error: ", err)
-			return
-		}
+		jumpURI := api.JumpToAuth(wx.OAUthScopeUserInfo, config.CallbackURI, defaultState)
 		http.Redirect(w, req, jumpURI, http.StatusSeeOther)
 		return
 	}
@@ -140,9 +137,16 @@ func (s *sampleStorage) SetAPITicket(ticket *wx.APITicket) {
 	}
 }
 
-func (s *sampleStorage) GetAPITicket(typ string) string {
-	if typ == wx.TicketTypeJSAPI {
-		return s.jsAPITicket
+func (s *sampleStorage) GetJSAPITicket() *wx.APITicket {
+	return &wx.APITicket{
+		Typ:    wx.TicketTypeJSAPI,
+		Ticket: s.jsAPITicket,
 	}
-	return ""
 }
+
+// func (s *sampleStorage) GetAPITicket(typ string) string {
+// 	if typ == wx.TicketTypeJSAPI {
+// 		return s.jsAPITicket
+// 	}
+// 	return ""
+// }
