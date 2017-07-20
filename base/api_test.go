@@ -71,8 +71,11 @@ func (s *sampleStorage) SetAPITicket(ticket *wx.APITicket) {
 	}
 }
 
-func (s *sampleStorage) GetJSAPITicket() string {
-	return s.jsAPITicket
+func (s *sampleStorage) GetJSAPITicket() *wx.APITicket {
+	return &wx.APITicket{
+		Typ:    wx.TicketTypeJSAPI,
+		Ticket: s.jsAPITicket,
+	}
 }
 
 // func (s *sampleStorage) GetAPITicket(typ string) string {

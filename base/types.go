@@ -33,5 +33,5 @@ type Storage interface {
 	wx.TicketStorage
 
 	// GetJSAPITicket for js-sdk ticket
-	GetJSAPITicket() string
+	GetJSAPITicket() *wx.APITicket
 }

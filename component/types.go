@@ -49,7 +49,7 @@ type Storage interface {
 	SetAuthorizationInfo(*AuthorizationTokenInfo)
 
 	// GetJSAPITicket for authorizer
-	GetJSAPITicket(authorizerAppID string) string
+	GetJSAPITicket(authorizerAppID string) *wx.APITicket
 
 	// GetVerifyTicket for component
 	GetVerifyTicket() string

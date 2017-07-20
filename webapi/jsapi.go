@@ -42,7 +42,7 @@ func (s *WebAPI) GetJSAPITicket(timeout int) (*wx.APITicket, error) {
 	if err != nil {
 		return nil, err
 	}
-	ticket.AppID = appID
+	ticket.AppID = s.AppID
 	ticket.Typ = wx.TicketTypeJSAPI
 	ticket.CreateAt = time.Now().Unix()
 
