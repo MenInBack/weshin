@@ -29,7 +29,7 @@ const (
 func (w *WebAPI) JumpToAuth(scope, redirectURI, state string) (jumpURL string) {
 	u := bytes.NewBufferString(oAuthPath)
 	u.WriteString("?appid=")
-	u.WriteString(w.GetAppID())
+	u.WriteString(w.AppID)
 	u.WriteString("&redirect_uri=")
 	u.WriteString(url.QueryEscape(redirectURI))
 	u.WriteString("&response_type=code")
@@ -39,7 +39,7 @@ func (w *WebAPI) JumpToAuth(scope, redirectURI, state string) (jumpURL string) {
 	u.WriteString(state)
 	if w.Mode == wx.ModeComponent {
 		u.WriteString("&component_appid=")
-		u.WriteString(w.ComponentID)
+		u.WriteString(w.GetAppID()) // componentAppID
 	}
 	u.WriteString("#wechat_redirect")
 
@@ -54,10 +54,10 @@ func (w *WebAPI) GrantAuthorizeToken(code string, timeout int) (token *UserAcces
 	switch w.Mode {
 	case wx.ModeComponent:
 		parameters = []wx.QueryParameter{
-			{"appid", w.GetAppID()},
+			{"appid", w.AppID},
 			{"code", code},
 			{"grant_type", wx.GrantTypeAuthorize},
-			{"component_appid", w.ComponentID},
+			{"component_appid", w.GetAppID()}, // componentAppID
 			{"component_access_token", w.GetAccessToken()},
 		}
 	case wx.ModeMP:
@@ -90,10 +90,10 @@ func (w *WebAPI) RefreshAuthorizeToken(refreshToken string, timeout int) (token 
 	switch w.Mode {
 	case wx.ModeComponent:
 		parameters = []wx.QueryParameter{
-			{"appid", w.GetAppID()},
+			{"appid", w.AppID},
 			{"grant_type", wx.GrantTypeRefresh},
 			{"refresh_token", refreshToken},
-			{"component_appid", w.ComponentID},
+			{"component_appid", w.GetAppID()}, // componentAppID
 			{"component_access_token", w.GetAccessToken()},
 		}
 	case wx.ModeMP:

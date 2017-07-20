@@ -5,8 +5,8 @@ import (
 )
 
 type WebAPI struct {
-	Mode        int32
-	ComponentID string
+	Mode  int32
+	AppID string // authorizer app_id in component mode
 	wx.WechatMP
 }
 

@@ -24,7 +24,7 @@ func TestJSAPI(t *testing.T) {
 		Mode:     wx.ModeMP,
 		WechatMP: mp,
 	}
-	ticket, err := api.GetJSAPITicket(mp.AppID, 0)
+	ticket, err := api.GetJSAPITicket(0)
 	if err != nil {
 		t.Error(err)
 	}
