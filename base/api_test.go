@@ -25,7 +25,7 @@ func TestAccessToken(t *testing.T) {
 	if err != nil {
 		t.Error("grant access token failed: ", err)
 	}
-	log.Print("got access token: ", token)
+	log.Printf("got access token: %+v", token)
 }
 
 func TestGetUserInfo(t *testing.T) {
@@ -71,9 +71,13 @@ func (s *sampleStorage) SetAPITicket(ticket *wx.APITicket) {
 	}
 }
 
-func (s *sampleStorage) GetAPITicket(typ string) string {
-	if typ == wx.TicketTypeJSAPI {
-		return s.jsAPITicket
-	}
-	return ""
+func (s *sampleStorage) GetJSAPITicket() string {
+	return s.jsAPITicket
 }
+
+// func (s *sampleStorage) GetAPITicket(typ string) string {
+// 	if typ == wx.TicketTypeJSAPI {
+// 		return s.jsAPITicket
+// 	}
+// 	return ""
+// }

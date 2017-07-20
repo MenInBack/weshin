@@ -31,4 +31,7 @@ type MPAccessToken struct {
 type Storage interface {
 	wx.TokenStorage
 	wx.TicketStorage
+
+	// GetJSAPITicket for js-sdk ticket
+	GetJSAPITicket() string
 }

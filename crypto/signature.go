@@ -21,7 +21,7 @@ func KeyedSignatured(values map[string]string) []byte {
 		vals = append(vals, b.String())
 	}
 	sort.Strings(vals)
-	sum := sha1.Sum([]byte(strings.Join(vals, "")))
+	sum := sha1.Sum([]byte(strings.Join(vals, "&")))
 	data := make([]byte, hex.EncodedLen(len(sum)))
 	hex.Encode(data, sum[:])
 	return data

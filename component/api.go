@@ -155,7 +155,7 @@ func (c *Component) GrantComponentAccessToken(timeout int) (token *ComponentAcce
 	}{
 		c.AppID,
 		c.Secret,
-		c.GetAPITicket(wx.TicketTypeVerify),
+		c.GetVerifyTicket(),
 	}
 
 	b, err := json.Marshal(body)

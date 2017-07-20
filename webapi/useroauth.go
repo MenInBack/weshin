@@ -26,7 +26,7 @@ const (
 // JumpToAuth compose jump uri for user authorization.
 // callback to redirectURI should be handled by caller of this package
 // https://open.weixin.qq.com/connect/oauth2/authorize?appid=APPID&redirect_uri=REDIRECT_URI&response_type=code&scope=SCOPE&state=STATE#wechat_redirect
-func (w *WebAPI) JumpToAuth(scope, redirectURI, state string) (jumpURL string, err error) {
+func (w *WebAPI) JumpToAuth(scope, redirectURI, state string) (jumpURL string) {
 	u := bytes.NewBufferString(oAuthPath)
 	u.WriteString("?appid=")
 	u.WriteString(w.GetAppID())
@@ -43,7 +43,7 @@ func (w *WebAPI) JumpToAuth(scope, redirectURI, state string) (jumpURL string, e
 	}
 	u.WriteString("#wechat_redirect")
 
-	return u.String(), nil
+	return u.String()
 }
 
 // GrantAuthorizeToken grant access token for user authorization

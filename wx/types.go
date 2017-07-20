@@ -1,15 +1,21 @@
 package wx
 
 type UserInfo struct {
-	OpenID     string   `json:"openid"`
-	Nickname   string   `json:"nickname"`
-	Sex        int      `json:"sex"`
-	Province   string   `json:"province"`
-	City       string   `json:"city"`
-	Country    string   `json:"country"`
-	HeadImgURL string   `json:"headimgurl"`
-	Privilege  []string `json:"privilege"`
-	UnionID    string   `json:"unionid"`
+	Subscribe     int32    `json:"subscribe"`
+	OpenID        string   `json:"openid"`
+	Nickname      string   `json:"nickname"`
+	Sex           int32    `json:"sex"`
+	Language      string   `json:"language"`
+	Province      string   `json:"province"`
+	City          string   `json:"city"`
+	Country       string   `json:"country"`
+	HeadImgURL    string   `json:"headimgurl"`
+	Privilege     []string `json:"privilege"`
+	SubscribeTime int64    `json:"subscribe_time"`
+	Remark        string   `json:"remark"`
+	GroupID       int32    `json:"groupid"`
+	TagIDList     []int32  `json:"tagid_list"`
+	UnionID       string   `json:"unionid"`
 }
 
 type APITicket struct {
@@ -43,5 +49,5 @@ type TicketStorage interface {
 	// SetAPITicket for verify ticket or js_api ticket.
 	SetAPITicket(*APITicket)
 	// GetAPITicket for verify ticket or js_api ticket.
-	GetAPITicket(typ string) string
+	// GetAPITicket(typ string) string
 }

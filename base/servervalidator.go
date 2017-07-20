@@ -9,8 +9,8 @@ import (
 )
 
 // StartServerValidator responses server validation request from wechat.
-func StartServerValidator(address, path string) {
-	http.HandleFunc(path, serverValidator)
+func (mp *MP) StartServerValidator(address string) {
+	http.HandleFunc("", serverValidator)
 	go http.ListenAndServe(address, nil)
 }
 

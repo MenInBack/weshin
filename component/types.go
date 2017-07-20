@@ -47,6 +47,12 @@ type Storage interface {
 
 	// SetAuthorizationInfo after authorized
 	SetAuthorizationInfo(*AuthorizationTokenInfo)
+
+	// GetJSAPITicket for authorizer
+	GetJSAPITicket(authorizerAppID string) string
+
+	// GetVerifyTicket for component
+	GetVerifyTicket() string
 }
 
 type NotifyError struct {

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"time"
 )
@@ -31,20 +30,17 @@ type QueryParameter struct {
 func (c HttpClient) Get(value interface{}) error {
 	req, err := http.NewRequest("GET", c.Path, nil)
 	if err != nil {
-		log.Fatal("http.NewRequest error: ", err)
 		return err
 	}
 	c.req = req
 
 	err = c.prepareQueries()
 	if err != nil {
-		log.Print("prepare http request failed: ", err)
 		return err
 	}
 
 	err = c.request(value)
 	if err != nil {
-		log.Print("http request failed: ", err)
 		return err
 	}
 
@@ -54,7 +50,6 @@ func (c HttpClient) Get(value interface{}) error {
 func (c *HttpClient) DoPost(body io.Reader, value interface{}) (err error) {
 	req, err := http.NewRequest("POST", c.Path, body)
 	if err != nil {
-		log.Fatal("http.NewRequest error: ", err)
 		return err
 	}
 	c.req = req
@@ -62,13 +57,11 @@ func (c *HttpClient) DoPost(body io.Reader, value interface{}) (err error) {
 
 	err = c.prepareQueries()
 	if err != nil {
-		log.Print("prepare http request failed: ", err)
 		return err
 	}
 
 	err = c.request(value)
 	if err != nil {
-		log.Print("http request failed: ", err)
 		return err
 	}
 
@@ -99,11 +92,9 @@ func (c *HttpClient) request(value interface{}) error {
 			return defaultTimeout * time.Second
 		}(),
 	}
-	log.Print("req: ", c.req)
 
 	resp, err := client.Do(c.req)
 	if err != nil {
-		log.Print("http request error: ", err)
 		return err
 	}
 	defer resp.Body.Close()
@@ -112,25 +103,21 @@ func (c *HttpClient) request(value interface{}) error {
 		err = HttpError{
 			State: resp.StatusCode,
 		}
-		log.Print("http request not ok: ", err)
 		return err
 	}
 
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Print("read response body error: ", err)
 		return err
 	}
 
 	err = handleRespError(data)
 	if err != nil {
-		log.Print("http response error: ", err)
 		return err
 	}
 
 	err = json.Unmarshal(data, value)
 	if err != nil {
-		log.Print("unmarshal response body error: ", err)
 		return err
 	}
 

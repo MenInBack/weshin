@@ -1,6 +1,7 @@
 package webapi
 
 import (
+	"log"
 	"testing"
 
 	"github.com/MenInBack/weshin/base"
@@ -24,10 +25,7 @@ func TestJumpURL(t *testing.T) {
 		Mode:     wx.ModeMP,
 		WechatMP: mp,
 	}
-	jumpURI, err := api.JumpToAuth(wx.OAUthScopeUserInfo, redirectURI, state)
-	if err != nil {
-		t.Error(err)
-	}
+	jumpURI := api.JumpToAuth(wx.OAUthScopeUserInfo, redirectURI, state)
 	t.Log(jumpURI)
 }
 
@@ -42,6 +40,7 @@ func newsampleStorage() *sampleStorage {
 }
 
 func (s *sampleStorage) SetAccessToken(token string, expriresIn int64) {
+	log.Print("token setted: ", token)
 	s.token = token
 }
 
@@ -51,13 +50,18 @@ func (s *sampleStorage) GetAccessToken() string {
 
 func (s *sampleStorage) SetAPITicket(ticket *wx.APITicket) {
 	if ticket.Typ == wx.TicketTypeJSAPI {
+		log.Println("jsapi ticket setted: ", ticket)
 		s.jsAPITicket = ticket.Ticket
 	}
 }
 
-func (s *sampleStorage) GetAPITicket(typ string) string {
-	if typ == wx.TicketTypeJSAPI {
-		return s.jsAPITicket
-	}
-	return ""
+func (s *sampleStorage) GetJSAPITicket() string {
+	return s.jsAPITicket
 }
+
+// func (s *sampleStorage) GetAPITicket(typ string) string {
+// 	if typ == wx.TicketTypeJSAPI {
+// 		return s.jsAPITicket
+// 	}
+// 	return ""
+// }
