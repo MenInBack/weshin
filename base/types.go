@@ -9,6 +9,7 @@ type MP struct {
 	AppID          string
 	Secret         string
 	EncodingAESKey string
+	Token          string
 	Storage
 }
 
