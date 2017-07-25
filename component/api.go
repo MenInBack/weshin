@@ -17,30 +17,16 @@ import (
 )
 
 func (c *Component) StartNotifyHandler() {
-	http.HandleFunc(c.Address.VerifyTicketPath, c.verifyTicketHandler)
-	http.HandleFunc(c.Address.AuthorizationPath, c.authorizationNotifyHandler)
+	http.HandleFunc("", c.AuthMessageHandler)
 	c.NotifyErrors = make(chan error)
 	go http.ListenAndServe(c.Address.Address, nil)
 }
 
-// <xml>
-// <AppId> </AppId>
-// <CreateTime>1413192605 </CreateTime>
-// <InfoType> </InfoType>
-// <ComponentVerifyTicket> </ComponentVerifyTicket>
-// </xml>
-type componentVerifyTicket struct {
-	XMLName               xml.Name `xml:"xml"`
-	AppID                 string   `xml:"AppId"`
-	CreateTime            int64    `xml:"CreateTime"`
-	InfoType              string   `xml:"InfoType"`
-	ComponentVerifyTicket string   `xml:"ComponentVerifyTicket"`
-}
-
-func (c *Component) verifyTicketHandler(w http.ResponseWriter, req *http.Request) {
+// AuthMessageHandler responses to messages from wechat for verify ticket and thirdparty authorization events
+func (c *Component) AuthMessageHandler(w http.ResponseWriter, req *http.Request) {
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		c.NotifyErrors <- NotifyError{wx.TicketHander, err}
+		c.NotifyErrors <- wx.NotifyError{err}
 		return
 	}
 
@@ -48,79 +34,54 @@ func (c *Component) verifyTicketHandler(w http.ResponseWriter, req *http.Request
 	p := getParameter(req)
 	encoding, err := crypto.New(c.EncodingAESKey, c.GetAccessToken(), c.AppID)
 	if err != nil {
-		c.NotifyErrors <- wx.NotifyError{wx.TicketHander, err}
+		c.NotifyErrors <- wx.NotifyError{err}
 		return
 	}
 	data, err := encoding.Decrypt(body, p.signature, p.nonce, p.timestamp)
 	if err != nil {
-		c.NotifyErrors <- wx.NotifyError{wx.TicketHander, err}
+		c.NotifyErrors <- wx.NotifyError{err}
 		return
 	}
-
-	var reqBody componentVerifyTicket
-	err = xml.Unmarshal(data, &reqBody)
-	if err != nil {
-		c.NotifyErrors <- NotifyError{wx.TicketHander, err}
-		return
-	}
-
 	w.Write([]byte("success"))
 
-	go c.SetAPITicket(&wx.APITicket{
-		Typ:      wx.TicketTypeVerify,
-		Ticket:   reqBody.ComponentVerifyTicket,
-		CreateAt: reqBody.CreateTime,
-	})
-}
-
-func (c *Component) authorizationNotifyHandler(w http.ResponseWriter, req *http.Request) {
-	body, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		c.NotifyErrors <- wx.NotifyError{wx.AuthorizerHander, err}
-		return
+	// unmarshal two different type int
+	var reqBody struct {
+		*ComponentVerifyTicket
+		*AuthorizationNotifyBody
 	}
 
-	// decrypt
-	p := getParameter(req)
-	encoding, err := crypto.New(c.EncodingAESKey, c.GetAccessToken(), c.AppID)
-	if err != nil {
-		c.NotifyErrors <- wx.NotifyError{wx.AuthorizerHander, err}
-		return
-	}
-	data, err := encoding.Decrypt(body, p.signature, p.nonce, p.timestamp)
-	if err != nil {
-		c.NotifyErrors <- wx.NotifyError{wx.AuthorizerHander, err}
-		return
-	}
-
-	var reqBody authorizationNotifyBody
 	err = xml.Unmarshal(data, &reqBody)
 	if err != nil {
-		c.NotifyErrors <- wx.NotifyError{wx.AuthorizerHander, err}
+		c.NotifyErrors <- wx.NotifyError{err}
 		return
 	}
 
-	w.Write([]byte("success"))
-
-	switch reqBody.InfoType {
-	case NotifyTypeAuthorized, NotifyTypeUpdateAuthorized:
-		// go c.SetAuthorizationCode(&AuthorizationCode{
-		// 	AppID:       reqBody.AuthorizationCode.AppID,
-		// 	Code:        reqBody.AuthorizationCode.Code,
-		// 	ExpiredTime: reqBody.AuthorizationCode.ExpiredTime,
-		// })
-		go func() {
-			tokenInfo, err := c.MPAuthorize(reqBody.AppID, 0)
-			if err != nil {
-				c.NotifyErrors <- wx.NotifyError{wx.AuthorizerHander, err}
-				return
-			}
-			go c.SetAuthorizationInfo(tokenInfo)
-		}()
-	case NotifyTypeUnauthorized:
-		go c.ClearAuthorizerToken(reqBody.AuthorizationCode.AppID)
+	// ticket notify
+	if reqBody.ComponentVerifyTicket != nil {
+		go c.SetAPITicket(&wx.APITicket{
+			Typ:      wx.TicketTypeVerify,
+			Ticket:   reqBody.ComponentVerifyTicket.ComponentVerifyTicket,
+			CreateAt: reqBody.ComponentVerifyTicket.CreateTime,
+		})
+		return
 	}
 
+	// authorization notify
+	if reqBody.AuthorizationNotifyBody != nil {
+		switch reqBody.AuthorizationNotifyBody.InfoType {
+		case NotifyTypeAuthorized, NotifyTypeUpdateAuthorized:
+			go func() {
+				tokenInfo, err := c.MPAuthorize(reqBody.AuthorizationNotifyBody.AppID, 0)
+				if err != nil {
+					c.NotifyErrors <- wx.NotifyError{err}
+					return
+				}
+				go c.SetAuthorizationInfo(tokenInfo)
+			}()
+		case NotifyTypeUnauthorized:
+			go c.ClearAuthorizerToken(reqBody.AuthorizationCode.AppID)
+		}
+	}
 }
 
 type messageParameter struct {
