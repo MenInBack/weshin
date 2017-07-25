@@ -40,12 +40,11 @@ func (e HttpError) Error() string {
 
 // NotifyError for async notifies
 type NotifyError struct {
-	Handler string
-	Err     error
+	Err error
 }
 
 func (e NotifyError) Error() string {
-	return fmt.Sprintf("error when handling %s: %s", e.Handler, e.Err.Error())
+	return fmt.Sprintf("error when handling message notify %s", e.Err.Error())
 }
 
 // handler names for NotifyError

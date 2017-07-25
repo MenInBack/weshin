@@ -88,7 +88,7 @@ func OAuthCallback(w http.ResponseWriter, req *http.Request) {
 	state := q.Get("state")
 
 	if len(code) <= 0 {
-		log.Print("invlaid code")
+		log.Print("invalid code")
 		return
 	}
 	if state != defaultState {
