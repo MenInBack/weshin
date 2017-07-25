@@ -17,7 +17,7 @@ import (
 )
 
 func (c *Component) StartNotifyHandler() {
-	http.HandleFunc("", c.AuthMessageHandler)
+	http.HandleFunc("/", c.AuthMessageHandler)
 	c.NotifyErrors = make(chan error)
 	go http.ListenAndServe(c.Address.Address, nil)
 }

@@ -73,10 +73,8 @@ type AuthorizationCode struct {
 
 // NotifyConfig configures notify addresses for wechat message
 type NotifyConfig struct {
-	Address           string
-	VerifyTicketPath  string
-	AuthorizationPath string
-	AuthRedirectURI   string
+	Address         string
+	AuthRedirectURI string
 }
 
 // {
