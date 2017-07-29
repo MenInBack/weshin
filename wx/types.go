@@ -31,12 +31,12 @@ type WechatMP interface {
 	GetSecret() string
 	GetEncodingAESKey() string
 
-	TokenStorage
-	TicketStorage
+	AccessTokenStorage
+	JSTicketStorage
 }
 
-// TokenStorage holds access token
-type TokenStorage interface {
+// AccessTokenStorage holds access token
+type AccessTokenStorage interface {
 	// SetAccessToken is called inside GrantAccessToken to update access token,
 	// access token refreshing should be arranged whenever setted.
 	SetAccessToken(token string, expiresIn int64)
@@ -44,10 +44,11 @@ type TokenStorage interface {
 	GetAccessToken() string
 }
 
-// TicketStorage holds verify ticket and js_api ticket
-type TicketStorage interface {
-	// SetAPITicket for verify ticket or js_api ticket.
-	SetAPITicket(*APITicket)
-	// GetAPITicket for verify ticket or js_api ticket.
-	// GetAPITicket(typ string) string
+// JSTicketStorage holds js_api ticket
+type JSTicketStorage interface {
+	// SetJSTicket for js_api ticket.
+	SetJSTicket(*APITicket)
+
+	// GetJSTicket for specificed appID
+	GetJSTicket(appID string) *APITicket
 }

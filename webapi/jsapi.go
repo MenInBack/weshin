@@ -46,7 +46,7 @@ func (s *WebAPI) GetJSAPITicket(timeout int) (*wx.APITicket, error) {
 	ticket.Typ = wx.TicketTypeJSAPI
 	ticket.CreateAt = time.Now().Unix()
 
-	go s.SetAPITicket(ticket)
+	go s.SetJSTicket(ticket)
 
 	return ticket, nil
 }

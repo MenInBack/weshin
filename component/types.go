@@ -31,12 +31,17 @@ func (c Component) GetEncodingAESKey() string {
 // Storage holds component ticket, access token, and authorizer codes,
 // and should be responsible for token refreshing.
 type Storage interface {
-	// holds token
-	wx.TokenStorage
+	// implements wx.wechatMP
+	wx.AccessTokenStorage
+	wx.JSTicketStorage
 
-	// holds ticket
-	wx.TicketStorage
+	// component specified interfaces
+	AuthorizerStorage
+	VerifyTicketStorage
+}
 
+// AuthorizerStorage holds authorizer access token
+type AuthorizerStorage interface {
 	// SetAuthorizerToken when authorized.
 	SetAuthorizerToken(token *AuthorizerToken)
 	// GetAuthorizerToken for querying authorizer info if authorized,
@@ -44,15 +49,14 @@ type Storage interface {
 	GetAuthorizerToken(authorizerAppID string) string
 	// ClearAuthorizertoken when authorization cancelled.
 	ClearAuthorizerToken(authorizerAppID string)
-
 	// SetAuthorizationInfo after authorized
 	SetAuthorizationInfo(*AuthorizationTokenInfo)
+}
 
-	// GetJSAPITicket for authorizer
-	GetJSAPITicket(authorizerAppID string) *wx.APITicket
-
-	// GetVerifyTicket for component
+// VerifyTicketStorage holds verify ticket for component
+type VerifyTicketStorage interface {
 	GetVerifyTicket() string
+	SetVerifyTicket(ticket *wx.APITicket)
 }
 
 type NotifyError struct {

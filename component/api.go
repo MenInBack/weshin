@@ -58,7 +58,7 @@ func (c *Component) AuthMessageHandler(w http.ResponseWriter, req *http.Request)
 
 	// ticket notify
 	if reqBody.ComponentVerifyTicket != nil {
-		go c.SetAPITicket(&wx.APITicket{
+		go c.SetVerifyTicket(&wx.APITicket{
 			Typ:      wx.TicketTypeVerify,
 			Ticket:   reqBody.ComponentVerifyTicket.ComponentVerifyTicket,
 			CreateAt: reqBody.ComponentVerifyTicket.CreateTime,

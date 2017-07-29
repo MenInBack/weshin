@@ -29,10 +29,8 @@ type MPAccessToken struct {
 	ExpiresIn   int64  `json:"expires_in"`
 }
 
+// Storage holds access token and JS-SDK ticket
 type Storage interface {
-	wx.TokenStorage
-	wx.TicketStorage
-
-	// GetJSAPITicket for js-sdk ticket
-	GetJSAPITicket() *wx.APITicket
+	wx.AccessTokenStorage
+	wx.JSTicketStorage
 }
