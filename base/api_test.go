@@ -65,13 +65,13 @@ func (s *sampleStorage) GetAccessToken() string {
 	return s.token
 }
 
-func (s *sampleStorage) SetAPITicket(ticket *wx.APITicket) {
+func (s *sampleStorage) SetJSTicket(ticket *wx.APITicket) {
 	if ticket.Typ == wx.TicketTypeJSAPI {
 		s.jsAPITicket = ticket.Ticket
 	}
 }
 
-func (s *sampleStorage) GetJSAPITicket() *wx.APITicket {
+func (s *sampleStorage) GetJSTicket(string) *wx.APITicket {
 	return &wx.APITicket{
 		Typ:    wx.TicketTypeJSAPI,
 		Ticket: s.jsAPITicket,
