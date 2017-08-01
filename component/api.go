@@ -17,9 +17,8 @@ import (
 )
 
 func (c *Component) StartNotifyHandler() {
-	http.HandleFunc("/", c.AuthMessageHandler)
 	c.NotifyErrors = make(chan error)
-	go http.ListenAndServe(c.Address.Address, nil)
+	go http.ListenAndServe(c.Address.Address, http.HandlerFunc(c.AuthMessageHandler))
 }
 
 // AuthMessageHandler responses to messages from wechat for verify ticket and thirdparty authorization events
