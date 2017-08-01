@@ -111,7 +111,7 @@ func (c *Component) GrantComponentAccessToken(timeout int) (token *ComponentAcce
 	body := struct {
 		ComponentAppID        string `json:"component_appid"`
 		ComponentAppSecret    string `json:"component_appsecret"`
-		ComponentVerifyTicket string `json:"component_verify_token"`
+		ComponentVerifyTicket string `json:"component_verify_ticket"`
 	}{
 		c.AppID,
 		c.Secret,
