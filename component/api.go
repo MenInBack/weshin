@@ -16,72 +16,142 @@ import (
 	"github.com/MenInBack/weshin/wx"
 )
 
-func (c *Component) StartNotifyHandler() {
-	c.NotifyErrors = make(chan error)
-	go http.ListenAndServe(c.Address.Address, http.HandlerFunc(c.AuthMessageHandler))
+func (c *Component) StartNotifyHandler() chan error {
+	chErr := make(chan error)
+
+	messageHandler := func(w http.ResponseWriter, req *http.Request) {
+		body, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			chErr <- wx.NotifyError{err}
+			return
+		}
+
+		// decrypt
+		p := getParameter(req)
+		encoding, err := crypto.New(c.EncodingAESKey, c.GetAccessToken(), c.AppID)
+		if err != nil {
+			chErr <- wx.NotifyError{err}
+			return
+		}
+		data, err := encoding.Decrypt(body, p.signature, p.nonce, p.timestamp)
+		if err != nil {
+			chErr <- wx.NotifyError{err}
+			return
+		}
+		w.Write([]byte("success"))
+
+		// unmarshal two different type int
+		var reqBody struct {
+			*ComponentVerifyTicket
+			*AuthorizationNotifyBody
+		}
+
+		err = xml.Unmarshal(data, &reqBody)
+		if err != nil {
+			chErr <- wx.NotifyError{err}
+			return
+		}
+
+		// ticket notify
+		if reqBody.ComponentVerifyTicket != nil {
+			go c.SetVerifyTicket(&wx.APITicket{
+				Typ:      wx.TicketTypeVerify,
+				Ticket:   reqBody.ComponentVerifyTicket.ComponentVerifyTicket,
+				CreateAt: reqBody.ComponentVerifyTicket.CreateTime,
+			})
+			return
+		}
+
+		// authorization notify
+		if reqBody.AuthorizationNotifyBody != nil {
+			switch reqBody.AuthorizationNotifyBody.InfoType {
+			case NotifyTypeAuthorized, NotifyTypeUpdateAuthorized:
+				go func() {
+					tokenInfo, err := c.MPAuthorize(reqBody.AuthorizationNotifyBody.AppID, 0)
+					if err != nil {
+						chErr <- wx.NotifyError{err}
+						return
+					}
+					go c.SetAuthorizationInfo(tokenInfo)
+				}()
+			case NotifyTypeUnauthorized:
+				go c.ClearAuthorizerToken(reqBody.AuthorizationCode.AppID)
+			}
+		}
+	}
+
+	go func() {
+		http.HandleFunc(c.Address.MessageResponsePath, messageHandler)
+		err := http.ListenAndServe(c.Address.Address, nil)
+		if err != nil {
+			chErr <- err
+		}
+	}()
+
+	return chErr
 }
 
 // AuthMessageHandler responses to messages from wechat for verify ticket and thirdparty authorization events
-func (c *Component) AuthMessageHandler(w http.ResponseWriter, req *http.Request) {
-	body, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		c.NotifyErrors <- wx.NotifyError{err}
-		return
-	}
+// func (c *Component) AuthMessageHandler(w http.ResponseWriter, req *http.Request) {
+// 	body, err := ioutil.ReadAll(req.Body)
+// 	if err != nil {
+// 		chErr <- wx.NotifyError{err}
+// 		return
+// 	}
 
-	// decrypt
-	p := getParameter(req)
-	encoding, err := crypto.New(c.EncodingAESKey, c.GetAccessToken(), c.AppID)
-	if err != nil {
-		c.NotifyErrors <- wx.NotifyError{err}
-		return
-	}
-	data, err := encoding.Decrypt(body, p.signature, p.nonce, p.timestamp)
-	if err != nil {
-		c.NotifyErrors <- wx.NotifyError{err}
-		return
-	}
-	w.Write([]byte("success"))
+// 	// decrypt
+// 	p := getParameter(req)
+// 	encoding, err := crypto.New(c.EncodingAESKey, c.GetAccessToken(), c.AppID)
+// 	if err != nil {
+// 		chErr <- wx.NotifyError{err}
+// 		return
+// 	}
+// 	data, err := encoding.Decrypt(body, p.signature, p.nonce, p.timestamp)
+// 	if err != nil {
+// 		chErr <- wx.NotifyError{err}
+// 		return
+// 	}
+// 	w.Write([]byte("success"))
 
-	// unmarshal two different type int
-	var reqBody struct {
-		*ComponentVerifyTicket
-		*AuthorizationNotifyBody
-	}
+// 	// unmarshal two different type int
+// 	var reqBody struct {
+// 		*ComponentVerifyTicket
+// 		*AuthorizationNotifyBody
+// 	}
 
-	err = xml.Unmarshal(data, &reqBody)
-	if err != nil {
-		c.NotifyErrors <- wx.NotifyError{err}
-		return
-	}
+// 	err = xml.Unmarshal(data, &reqBody)
+// 	if err != nil {
+// 		chErr <- wx.NotifyError{err}
+// 		return
+// 	}
 
-	// ticket notify
-	if reqBody.ComponentVerifyTicket != nil {
-		go c.SetVerifyTicket(&wx.APITicket{
-			Typ:      wx.TicketTypeVerify,
-			Ticket:   reqBody.ComponentVerifyTicket.ComponentVerifyTicket,
-			CreateAt: reqBody.ComponentVerifyTicket.CreateTime,
-		})
-		return
-	}
+// 	// ticket notify
+// 	if reqBody.ComponentVerifyTicket != nil {
+// 		go c.SetVerifyTicket(&wx.APITicket{
+// 			Typ:      wx.TicketTypeVerify,
+// 			Ticket:   reqBody.ComponentVerifyTicket.ComponentVerifyTicket,
+// 			CreateAt: reqBody.ComponentVerifyTicket.CreateTime,
+// 		})
+// 		return
+// 	}
 
-	// authorization notify
-	if reqBody.AuthorizationNotifyBody != nil {
-		switch reqBody.AuthorizationNotifyBody.InfoType {
-		case NotifyTypeAuthorized, NotifyTypeUpdateAuthorized:
-			go func() {
-				tokenInfo, err := c.MPAuthorize(reqBody.AuthorizationNotifyBody.AppID, 0)
-				if err != nil {
-					c.NotifyErrors <- wx.NotifyError{err}
-					return
-				}
-				go c.SetAuthorizationInfo(tokenInfo)
-			}()
-		case NotifyTypeUnauthorized:
-			go c.ClearAuthorizerToken(reqBody.AuthorizationCode.AppID)
-		}
-	}
-}
+// 	// authorization notify
+// 	if reqBody.AuthorizationNotifyBody != nil {
+// 		switch reqBody.AuthorizationNotifyBody.InfoType {
+// 		case NotifyTypeAuthorized, NotifyTypeUpdateAuthorized:
+// 			go func() {
+// 				tokenInfo, err := c.MPAuthorize(reqBody.AuthorizationNotifyBody.AppID, 0)
+// 				if err != nil {
+// 					chErr <- wx.NotifyError{err}
+// 					return
+// 				}
+// 				go c.SetAuthorizationInfo(tokenInfo)
+// 			}()
+// 		case NotifyTypeUnauthorized:
+// 			go c.ClearAuthorizerToken(reqBody.AuthorizationCode.AppID)
+// 		}
+// 	}
+// }
 
 type messageParameter struct {
 	timestamp   string
