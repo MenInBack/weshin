@@ -70,9 +70,9 @@ func (e NotifyError) Error() string {
 
 // AuthorizationCode holds authorizer code
 type AuthorizationCode struct {
-	AppID       string `json:"authorizerAppid,omitempty" xml:"authorizerAppid,cdata"`
-	Code        string `json:"authorizationCode,omitempty" xml:"authorizationCode,cdata"`
-	ExpiredTime int64  `json:"authorizationCodeExpiredTime,omitempty" xml:"authorizationCodeExpiredTime,cdata"`
+	AppID       string `json:"authorizerAppid,omitempty"`
+	Code        string `json:"authorizationCode,omitempty"`
+	ExpiredTime int64  `json:"authorizationCodeExpiredTime,omitempty"`
 }
 
 // NotifyConfig configures notify addresses for wechat message
