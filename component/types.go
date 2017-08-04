@@ -164,9 +164,9 @@ type AuthorizerOption struct {
 // authorization notify request body
 type AuthorizationNotifyBody struct {
 	XMLName    xml.Name `xml:"xml"`
-	AppID      string   `json:"appId,omitempty" xml:"appId,cdata"`
-	CreateTime int64    `json:"createTime,omitempty" xml:"createTime,cdata"`
-	InfoType   string   `json:"infoType,omitempty" xml:"infoType,cdata"`
+	AppID      string   `json:"appId,omitempty" xml:"appId"`
+	CreateTime int64    `json:"createTime,omitempty" xml:"createTime"`
+	InfoType   string   `json:"infoType,omitempty" xml:"infoType"`
 	AuthorizationCode
 }
 
