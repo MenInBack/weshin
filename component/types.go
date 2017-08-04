@@ -12,7 +12,7 @@ type Component struct {
 	AppID          string
 	Secret         string
 	EncodingAESKey string
-	NotifyErrors   chan error
+	SignatureToken string
 	Address        *NotifyConfig
 	Storage
 }
