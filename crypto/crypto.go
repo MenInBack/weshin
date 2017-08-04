@@ -194,9 +194,8 @@ func (mc *MessageCrypto) messageUnpadding(src []byte) ([]byte, error) {
 	if len(src) <= int(size) {
 		return nil, errors.New("unpadded message too short")
 	}
-	padding := src[len(src)-1]
 
-	appid := src[int(size) : len(src)-int(padding)]
+	appid := src[int(size):]
 	if !bytes.Equal(appid, []byte(mc.AppID)) {
 		return nil, errors.New("appid mismatch")
 	}
