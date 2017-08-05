@@ -166,7 +166,6 @@ type AuthorizationNotifyBody struct {
 	XMLName    xml.Name `xml:"xml"`
 	AppID      string   `json:"appId,omitempty" xml:"appId"`
 	CreateTime int64    `json:"createTime,omitempty" xml:"createTime"`
-	InfoType   string   `json:"infoType,omitempty" xml:"infoType"`
 	AuthorizationCode
 }
 
@@ -180,6 +179,5 @@ type ComponentVerifyTicket struct {
 	XMLName               xml.Name `xml:"xml"`
 	AppID                 string   `xml:"AppId"`
 	CreateTime            int64    `xml:"CreateTime"`
-	InfoType              string   `xml:"InfoType"`
 	ComponentVerifyTicket string   `xml:"ComponentVerifyTicket"`
 }

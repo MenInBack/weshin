@@ -11,11 +11,12 @@ import (
 )
 
 const (
-	oAuthPath        = "https://open.weixin.qq.com/connect/oauth2/authorize"
-	accessTokenPath  = "https://api.weixin.qq.com/sns/oauth2/access_token"
-	refreshTokenPath = "https://api.weixin.qq.com/sns/oauth2/refresh_token"
-	verifyTokenPath  = "https://api.weixin.qq.com/sns/auth"
-	userinfoPath     = "https://api.weixin.qq.com/sns/userinfo"
+	oAuthPath          = "https://open.weixin.qq.com/connect/oauth2/authorize"
+	mpOAuthPath        = "https://api.weixin.qq.com/sns/oauth2/access_token"
+	componentOAuthPath = "https://api.weixin.qq.com/sns/oauth2/component/access_token"
+	refreshTokenPath   = "https://api.weixin.qq.com/sns/oauth2/refresh_token"
+	verifyTokenPath    = "https://api.weixin.qq.com/sns/auth"
+	userinfoPath       = "https://api.weixin.qq.com/sns/userinfo"
 )
 
 const (
@@ -49,6 +50,7 @@ func (w *WebAPI) JumpToAuth(scope, redirectURI, state string) (jumpURL string) {
 // GrantAuthorizeToken grant access token for user authorization
 // code is in callback request url after user agreed for oauth
 // https://api.weixin.qq.com/sns/oauth2/access_token?appid=APPID&secret=SECRET&code=CODE&grant_type=authorization_code
+// https://api.weixin.qq.com/sns/oauth2/component/access_token?appid=APPID&code=CODE&grant_type=authorization_code&component_appid=COMPONENT_APPID&component_access_token=COMPONENT_ACCESS_TOKEN
 func (w *WebAPI) GrantAuthorizeToken(code string, timeout int) (token *UserAccessToken, err error) {
 	var parameters []wx.QueryParameter
 	switch w.Mode {
@@ -69,7 +71,15 @@ func (w *WebAPI) GrantAuthorizeToken(code string, timeout int) (token *UserAcces
 		}
 	}
 	req := wx.HttpClient{
-		Path:       accessTokenPath,
+		Path: func() string {
+			switch w.Mode {
+			case wx.ModeComponent:
+				return componentOAuthPath
+			case wx.ModeMP:
+				return mpOAuthPath
+			}
+			return ""
+		}(),
 		Timeout:    timeout,
 		Parameters: parameters,
 	}
@@ -142,7 +152,7 @@ func (w *WebAPI) VerifyAuthorizeToken(openID, token string, timeout int) (valid 
 // GetUserInfo get authorized user info
 // token is user access token granted earlier, not access token of mp account or component
 // https://api.weixin.qq.com/sns/userinfo?access_token=ACCESS_TOKEN&openid=OPENID&lang=zh_CN
-func (w *WebAPI) GetUserInfo(openID, lang string, timeout int) (info *wx.UserInfo, err error) {
+func (w *WebAPI) GetUserInfo(openID, token, lang string, timeout int) (info *wx.UserInfo, err error) {
 	if lang == "" {
 		lang = wx.LangCN
 	} else if lang != wx.LangCN && lang != wx.LangTW && lang != wx.LangEN {
@@ -153,7 +163,7 @@ func (w *WebAPI) GetUserInfo(openID, lang string, timeout int) (info *wx.UserInf
 		Path:    userinfoPath,
 		Timeout: timeout,
 		Parameters: []wx.QueryParameter{
-			{"access_token", w.GetAccessToken()},
+			{"access_token", token},
 			{"openid", openID},
 			{"lang", lang},
 		},

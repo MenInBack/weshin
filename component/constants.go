@@ -12,6 +12,7 @@ const (
 )
 
 const (
+	NotifyTypeVerifyTicket     = "component_verify_ticket"
 	NotifyTypeUnauthorized     = "unauthorized"
 	NotifyTypeAuthorized       = "authorized"
 	NotifyTypeUpdateAuthorized = "updateauthorized"
