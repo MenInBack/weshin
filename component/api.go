@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -40,10 +41,11 @@ func (c *Component) StartNotifyHandler() chan error {
 		}
 		w.Write([]byte("success"))
 
-		// unmarshal two different type int
+		// unmarshal two different message into one
 		var reqBody struct {
 			*ComponentVerifyTicket
 			*AuthorizationNotifyBody
+			InfoType string `xml:"InfoType"`
 		}
 
 		err = xml.Unmarshal(data, &reqBody)
@@ -52,31 +54,44 @@ func (c *Component) StartNotifyHandler() chan error {
 			return
 		}
 
+		switch reqBody.InfoType {
 		// ticket notify
-		if reqBody.ComponentVerifyTicket != nil {
+		case NotifyTypeVerifyTicket:
+			if reqBody.ComponentVerifyTicket == nil {
+				chErr <- wx.NotifyError{errors.New("invalid ticket notify")}
+				return
+			}
 			go c.SetVerifyTicket(&wx.APITicket{
 				Typ:      wx.TicketTypeVerify,
+				AppID:    c.AppID,
 				Ticket:   reqBody.ComponentVerifyTicket.ComponentVerifyTicket,
 				CreateAt: reqBody.ComponentVerifyTicket.CreateTime,
 			})
-			return
-		}
 
 		// authorization notify
-		if reqBody.AuthorizationNotifyBody != nil {
-			switch reqBody.AuthorizationNotifyBody.InfoType {
-			case NotifyTypeAuthorized, NotifyTypeUpdateAuthorized:
-				go func() {
-					tokenInfo, err := c.MPAuthorize(reqBody.AuthorizationNotifyBody.AppID, 0)
-					if err != nil {
-						chErr <- wx.NotifyError{err}
-						return
-					}
-					go c.SetAuthorizationInfo(tokenInfo)
-				}()
-			case NotifyTypeUnauthorized:
-				go c.ClearAuthorizerToken(reqBody.AuthorizationCode.AppID)
+		case NotifyTypeAuthorized, NotifyTypeUpdateAuthorized:
+			if reqBody.AuthorizationNotifyBody == nil {
+				chErr <- wx.NotifyError{errors.New("invalid authorization notify")}
+				return
 			}
+			go func() {
+				tokenInfo, err := c.MPAuthorize(reqBody.AuthorizationNotifyBody.AppID, 0)
+				if err != nil {
+					chErr <- wx.NotifyError{err}
+					return
+				}
+				go c.SetAuthorizationInfo(tokenInfo)
+			}()
+
+		case NotifyTypeUnauthorized:
+			if reqBody.AuthorizationNotifyBody == nil {
+				chErr <- wx.NotifyError{errors.New("invalid authorization notify")}
+				return
+			}
+			go c.ClearAuthorizerToken(reqBody.AuthorizationCode.AppID)
+
+		default:
+			chErr <- wx.NotifyError{errors.New("invalid info type")}
 		}
 	}
 
