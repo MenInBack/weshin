@@ -102,7 +102,7 @@ func OAuthCallback(w http.ResponseWriter, req *http.Request) {
 	}
 	log.Printf("got access token %+v", token)
 
-	userinfo, err := api.GetUserInfo(token.OpenID, "", 0)
+	userinfo, err := api.GetUserInfo(token.OpenID, token.AccessToken, "", 0)
 	if err != nil {
 		log.Print("GetUserInfo error: ", err)
 		return
