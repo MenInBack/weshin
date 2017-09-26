@@ -71,3 +71,11 @@ type ParameterError struct {
 func (e ParameterError) Error() string {
 	return fmt.Sprint("parameter error: invalid ", e.InvalidParameter)
 }
+
+type WeshinError struct {
+	Detail string
+}
+
+func (e WeshinError) Error() string {
+	return fmt.Sprint("weshin error: ", e.Detail)
+}
