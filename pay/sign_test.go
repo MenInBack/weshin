@@ -3,6 +3,7 @@ package pay
 import (
 	"encoding/xml"
 	"fmt"
+	"reflect"
 	"testing"
 )
 
@@ -25,28 +26,24 @@ func TestSign(t *testing.T) {
 		Body:       "test",
 	}
 
-	e := signRequest(&v, key, HMAC)
+	fields := parseStruct(reflect.ValueOf(v))
+	s, err := sign(fields, key, MD5)
+	if err != nil {
+		t.Error(err)
+	}
+
+	s, e := sign(fields, key, HMAC)
 	if e != nil {
 		t.Error(e)
 	}
 
-	fmt.Println(v)
+	fmt.Println(s)
 
 	d, e := xml.MarshalIndent(v, "", "  ")
 	if e != nil {
 		t.Error(e)
 	}
 	fmt.Println(string(d))
-}
-
-// quite slow with reflect
-// 3782 ns/op on Mac
-func BenchmarkSign(b *testing.B) {
-	v := typ{}
-
-	for i := 0; i < b.N; i++ {
-		signRequest(&v, key, MD5)
-	}
 }
 
 func TestRandomString(t *testing.T) {

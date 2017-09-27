@@ -37,58 +37,90 @@ type ResponseBase struct {
 	ErrorDescription CData    `xml:"err_code_des,omitempty"`
 }
 
+type CData struct {
+	Data string `xml:",cdata"`
+}
+
+func (cd CData) String() string {
+	return cd.Data
+}
+
+func (cd *CData) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	return d.DecodeElement(cd.Data, &start)
+}
+
 type Fee int32
 
 type Time time.Time
 
-func (t Time) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
-	e.EncodeElement(time.Time(t).Format("20060102150405"), start)
+func (t *Time) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	e.EncodeElement(time.Time(*t).Format("20060102150405"), start)
 	return nil
 }
 
-//go:generate stringer -type=PayStatus,RefundStatus,SignType,FeeType,TradeType,LimitPay $GOFILE
-type PayStatus int
+func (t *Time) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	s := new(string)
+	e := d.DecodeElement(s, &start)
+	if e != nil {
+		return e
+	}
+	tt, e := time.Parse("20060102150405", *s)
+	if e != nil {
+		return e
+	}
+	*t = Time(tt)
+	return nil
+}
+
+type TradeState string
 
 const (
-	NotPay     PayStatus = 1
-	PaySuccess PayStatus = 2
-	PayRefund  PayStatus = 3
-	PayClosed  PayStatus = 4
-	PayError   PayStatus = 5
+	NotPay     TradeState = "NOTPAY"
+	PaySuccess TradeState = "SUCCESS"
+	PayRefund  TradeState = "REFUND"
+	PayClosed  TradeState = "CLOSED"
+	PayError   TradeState = "PAYERROR"
+	PayRevoked TradeState = "REVOKED"
+	Paying     TradeState = "USERPAYING"
 )
 
-type RefundStatus int
+type RefundStatus string
 
 const (
-	RefundProcessing RefundStatus = 1
+	RefundProcessing RefundStatus = "PROCESSING"
+	RefundSuccess    RefundStatus = "SUCCESS"
+	RefundClosed     RefundStatus = "REFUNDCLOSE"
+	RefundChanged    RefundStatus = "CHANGE"
 )
 
-type SignType int
+type SignType string
 
 const (
-	MD5  SignType = 1
-	HMAC SignType = 2
+	MD5  SignType = "MD5"
+	HMAC SignType = "HMAC-SHA256"
 )
 
-type FeeType int
+type FeeType string
 
 const (
-	CNY FeeType = 1
+	CNY FeeType = "CNY"
 )
 
-type TradeType int
+type TradeType string
 
 const (
-	JSAPI  TradeType = 1
-	NATIVE TradeType = 2
-	APP    TradeType = 3
+	JSAPI  TradeType = "JSAPI"
+	NATIVE TradeType = "NATIVE"
+	APP    TradeType = "APP"
 )
 
-type LimitPay int
+type LimitPay string
 
 const (
-	NoCredit LimitPay = 1
+	NoCredit LimitPay = "no_credit"
 )
+
+type BankType string
 
 type ErrorCode string
 
@@ -103,7 +135,7 @@ type PreOrderRequest struct {
 	Description string     `xml:"body,omitempty"`         // https://pay.weixin.qq.com/wiki/doc/api/jsapi.php?chapter=4_2
 	Detail      string     `xml:"detail,CDATA,omitempty"` // https://pay.weixin.qq.com/wiki/doc/api/danpin.php?chapter=9_102&index=2
 	Attach      string     `xml:"attach,omitempty"`
-	OrderID     string     `xml:"out_trade_no,omitempty"`     // 商户系统内部订单号，要求32个字符内，只能是数字、大小写字母_-|*@ ，且在同一个商户号下唯一
+	TradeNo     string     `xml:"out_trade_no,omitempty"`     // 商户系统内部订单号，要求32个字符内，只能是数字、大小写字母_-|*@ ，且在同一个商户号下唯一
 	TotalFee    Fee        `xml:"total_fee,omitempty"`        // 订单总金额，单位为分
 	CreateIP    string     `xml:"spbill_create_ip,omitempty"` // APP和网页支付提交用户端ip，Native支付填调用微信支付API的机器IP
 	TimeStart   Time       `xml:"time_start,omitempty"`       // yyyyMMddHHmmss
@@ -144,53 +176,89 @@ func (si *SceneInfo) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 
 type PreOrderResponse struct {
 	DeviceInfo CData `xml:"deviceInfo,omitempty"`
-	TradeType  `xml:"tradeType,omitempty"`
-	PrepayID   CData `xml:"prepayID,omitempty"`
-	CodeURL    CData `xml:"codeURL,omitempty"`
+	TradeType  `xml:"trade_type,omitempty"`
+	PrepayID   CData `xml:"prepay_id,omitempty"`
+	CodeURL    CData `xml:"code_url,omitempty"`
 }
 
 type QueryOrderRequest struct {
-	TransactionID string `xml:"transactionID,omitempty"` // 商户订单号 二选一
-	OrderID       string `xml:"orderID,omitempty"`       //微信的订单号，建议优先使用
+	TransactionID string `xml:"transaction_id,omitempty"` // 商户订单号 二选一
+	TradeNo       string `xml:"out_trade_no,omitempty"`   //微信的订单号，建议优先使用
 }
 
+// not include coupon_type_$n,coupon_id_$n,coupon_fee_$n
 type QueryOrderResponse struct {
-	DeviceInfo string
+	DeviceInfo     CData   `xml:"device_info,omitempty"`
+	OpenID         CData   `xml:"openid,omitempty"`
+	IsSubscribe    CData   `xml:"is_subscribe,omitempty"`
+	TotalFee       Fee     `xml:"total_fee,omitempty"`
+	SettlementFee  Fee     `xml:"settlement_total_fee,omitempty"` // 应结订单金额, 当订单使用了免充值型优惠券后返回该参数，应结订单金额=订单金额-免充值优惠券金额。
+	CashFee        Fee     `xml:"cash_fee,omitempty"`
+	CashFeeType    FeeType `xml:"cash_fee_type,omitempty"`
+	CouponFee      Fee     `xml:"coupon_fee,omitempty"`
+	CouponCount    int     `xml:"coupon_count,omitempty"`
+	TransactionID  CData   `xml:"transaction_id,omitempty"`
+	TradeNo        string  `xml:"out_trade_no,omitempty"`
+	Attach         CData   `xml:"attach,omitempty"`
+	TimeEnd        Time    `xml:"time_end,omitempty"`
+	TradeStateDesc string  `xml:"trade_state_desc,omitempty"`
+	TradeType      `xml:"trade_type,omitempty"`
+	TradeState     `xml:"trade_state,omitempty"`
+	BankType       `xml:"bank_type,omitempty"`
+	FeeType        `xml:"fee_type,omitempty"`
 }
 
-// helpers for xml marshalling:
-
-type CData struct {
-	Data string `xml:",cdata"`
+type CloseOrderRequest struct {
+	TradeNo string `xml:"out_trade_no,omitempty"`
 }
 
-func (d CData) String() string {
-	return d.Data
+type RefundRequest struct {
+	TransactionID CData   `xml:"transaction_id,omitempty"`
+	TradeNo       string  `xml:"out_trade_no,omitempty"`  // 商户系统内部订单号
+	RefundNo      string  `xml:"out_refund_no,omitempty"` // 商户系统内部的退款单号
+	TotalFee      Fee     `xml:"total_fee,omitempty"`
+	RefundFee     Fee     `xml:"refund_fee,omitempty"`
+	RefundFeeType FeeType `xml:"refund_fee_type,omitempty"`
+	RefundDesc    string  `xml:"refund_desc,omitempty"`
 }
 
-var signTypeNames = []string{"MD5", "HMAC-SHA256"}
-
-func (st SignType) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
-	if int(st) > len(signTypeNames) {
-		e.EncodeElement(st.String(), start)
-	} else {
-		e.EncodeElement(signTypeNames[st-1], start)
-	}
-	return nil
+// not include coupon_type_$n, coupon_refund_fee_$n, coupon_refund_id_$n
+type RefundResponse struct {
+	TransactionID       CData   `xml:"transaction_id,omitempty"`
+	TradeNo             string  `xml:"out_trade_no,omitempty"`
+	RefundNo            string  `xml:"out_refund_no,omitempty"`
+	RefundID            string  `xml:"refund_id,omitempty"` // 微信退款单号
+	RefundFee           Fee     `xml:"refund_fee,omitempty"`
+	RefundFeeType       FeeType `xml:"refund_fee_type,omitempty"`
+	SettlementRefundFee Fee     `xml:"settlement_refund_fee,omitempty"` // 应结退款金额, 去掉非充值代金券退款金额后的退款金额，退款金额=申请退款金额-非充值代金券退款金额，退款金额<=申请退款金额应结退款金额
+	TotalFee            Fee     `xml:"total_fee,omitempty"`
+	SettlementFee       Fee     `xml:"settlement_total_fee,omitempty"` // 应结订单金额, 去掉非充值代金券金额后的订单总金额，应结订单金额=订单金额-非充值代金券金额，应结订单金额<=订单金额。
+	FeeType             FeeType `xml:"fee_type,omitempty"`
+	CashFee             Fee     `xml:"cash_fee,omitempty"`
+	CashFeeType         FeeType `xml:"cash_fee_type,omitempty"`
+	CashRefundFee       Fee     `xml:"cash_refund_fee,omitempty"`
+	CouponRefundFee     Fee     `xml:"coupon_refund_fee,omitempty"`
+	CouponRefundCount   int     `xml:"coupon_refund_count,omitempty"`
+	RefundDesc          string  `xml:"refund_desc,omitempty"`
 }
 
-func (tt TradeType) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
-	e.EncodeElement(tt.String(), start)
-	return nil
+// 四选一 refund_id > out_refund_no > transaction_id > out_trade_no
+type QueryRefundRequest struct {
+	TransactionID CData  `xml:"transaction_id,omitempty"`
+	TradeNo       string `xml:"out_trade_no,omitempty"`
+	RefundNo      string `xml:"out_refund_no,omitempty"`
+	RefundID      string `xml:"refund_id,omitempty"` // 微信退款单号
 }
 
-var limitPayNames = []string{"no_credit"}
-
-func (lp LimitPay) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
-	if int(lp) > len(limitPayNames) {
-		e.EncodeElement(lp.String(), start)
-	} else {
-		e.EncodeElement(limitPayNames[lp-1], start)
-	}
-	return nil
+type QueryRefundResponse struct {
+	TransactionID  CData   `xml:"transaction_id,omitempty"`
+	TradeNo        string  `xml:"out_trade_no,omitempty"`
+	TotalFee       Fee     `xml:"total_fee,omitempty"`
+	SettlementFee  Fee     `xml:"settlement_total_fee,omitempty"` // 应结订单金额, 去掉非充值代金券金额后的订单总金额，应结订单金额=订单金额-非充值代金券金额，应结订单金额<=订单金额。
+	FeeType        FeeType `xml:"fee_type,omitempty"`
+	CashFee        Fee     `xml:"cash_fee,omitempty"`
+	RefundCount    int     `xml:"refund_count,omitempty"`
+	RefundNos      []CData `xml:"out_refund_no,omitempty"`
+	RefundIDs      []CData `xml:"refund_id,omitempty"`
+	RefundChannels []CData `xml:"refund_channel,omitempty"`
 }
