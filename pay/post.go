@@ -81,6 +81,9 @@ func (m *MerchantInfo) postXML(path string, request, response interface{}, safe 
 		return e
 	}
 	defer resp.Body.Close()
+	if verbose {
+		fmt.Println("response: ", resp)
+	}
 
 	if resp.StatusCode != http.StatusOK {
 		return wx.HttpError{
@@ -96,55 +99,98 @@ func (m *MerchantInfo) postXML(path string, request, response interface{}, safe 
 
 // sign and marshal request
 func (m *MerchantInfo) prepareRequest(req interface{}) ([]byte, error) {
-	var reqAll struct {
-		RequestBase
-		Req interface{}
-	}
-	reqAll.Req = req
-	reqAll.RequestBase = RequestBase{
-		AppID:      m.AppID,
-		MerchantID: m.MerchantID,
-		Nonce:      randomString(NonceLength),
-	}
+	fields := structToFields(reflect.ValueOf(req))
 
-	fields := parseStruct(reflect.ValueOf(reqAll))
+	fields = append(fields,
+		field{"app_id", m.AppID},
+		field{"mch_id", m.MerchantID},
+		field{"nonce", randomString(NonceLength)})
+
 	s, err := sign(fields, m.PaymentKey, MD5)
 	if err != nil {
 		return nil, err
 	}
+	fields = append(fields, field{"sign", s}, field{"sign_type", "MD5"})
 
-	reqAll.RequestBase.Sign = s
-	reqAll.RequestBase.SignType = MD5
-	return xml.Marshal(reqAll)
+	if verbose {
+		fmt.Println("request fields: ", fields)
+	}
+
+	return marshalRequest(fields)
 }
 
-// check signature and parse other fields of response
-// func (m *MerchantInfo) parseResponse(body io.Reader, response interface{}) error {
-// 	var respAll struct {
-// 		ResponseBase
-// 		Resp interface{}
-// 	}
-// 	respAll.Resp = response
+func structToFields(val reflect.Value) []field {
+	typ := val.Type()
+	for val.Kind() == reflect.Ptr || val.Kind() == reflect.Interface {
+		val = val.Elem()
+		typ = typ.Elem()
+	}
 
-// 	data, e := ioutil.ReadAll(body)
-// 	if e != nil {
-// 		return e
-// 	}
-// 	if verbose {
-// 		fmt.Println("response body: ", string(data))
-// 	}
+	// extract xml name and value for signing
+	fields := make([]field, 0, val.NumField())
+	for i := 0; i < val.NumField(); i++ {
+		var name, value string
+		f := typ.Field(i)
+		v := val.Field(i)
 
-// 	if e := xml.Unmarshal(data, &respAll); e != nil {
-// 		return e
-// 	}
-// 	if e := checkSignature(&respAll, m.PaymentKey, MD5); e != nil {
-// 		return e
-// 	}
-// 	if e := checkResult(respAll.ResponseBase); e != nil {
-// 		return e
-// 	}
-// 	return nil
-// }
+		// ignore zero field
+		if !v.IsValid() {
+			continue
+		}
+
+		switch f.Name {
+		case "XMLName", "SignType", "Sign":
+			continue
+		}
+
+		tags := strings.Split(f.Tag.Get("xml"), ",")
+		if len(tags) > 0 {
+			name = tags[0]
+			if name == "" {
+				name = f.Name
+			}
+		}
+
+		if v.Type().Implements(reflect.ValueOf(new(fmt.Stringer)).Elem().Type()) {
+			value = v.MethodByName("String").Call([]reflect.Value{})[0].Interface().(string)
+		} else {
+			switch v.Kind() {
+			// no slice right now
+			case reflect.String, reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Float32, reflect.Float64:
+				value = v.String()
+			case reflect.Struct, reflect.Ptr:
+				fields = append(fields, structToFields(v)...)
+				continue
+			}
+		}
+
+		if value == "" {
+			continue
+		}
+
+		fields = append(fields, field{name, value})
+	}
+
+	return fields
+}
+
+func marshalRequest(fields []field) ([]byte, error) {
+	buf := bytes.NewBufferString("<xml>")
+	for _, f := range fields {
+		if f.value == "" {
+			continue
+		}
+		buf.WriteByte('<')
+		buf.WriteString(f.name)
+		buf.WriteByte('>')
+		buf.WriteString(f.value)
+		buf.WriteString("</")
+		buf.WriteString(f.name)
+		buf.WriteByte('>')
+	}
+	buf.WriteString("</xml>")
+	return buf.Bytes(), nil
+}
 
 func checkResult(r ResponseBase) error {
 	if r.ReturnCode.Data != "SUCCESS" {
@@ -160,6 +206,10 @@ func (m *MerchantInfo) handleResponse(body io.Reader, response interface{}) erro
 	fields, e := parseToFields(body)
 	if e != nil {
 		return e
+	}
+
+	if verbose {
+		fmt.Println("xml to fields: ", fields)
 	}
 
 	// check signature
@@ -215,16 +265,21 @@ func parseToFields(body io.Reader) (fields map[string]string, e error) {
 	parseXML := func(e xml.EndElement) error {
 		var name, value string
 		n := len(tokens)
-		if n < 2 {
+		if n < 1 {
 			return wx.WeshinError{Detail: "unexpected EndElement in response xml"}
 		}
 
+		if _, ok := tokens[n-1].(xml.StartElement); ok {
+			tokens = tokens[:n-1]
+			return nil // empty xml element
+		}
 		if t, ok := tokens[n-1].(xml.CharData); ok {
 			value = string(t.Copy())
 		} else if t, ok := tokens[n-1].(xml.Directive); ok {
 			value = string(t.Copy())
 		} else {
-			return wx.WeshinError{Detail: "expect Directive or CharData before an EndElement"}
+			return nil
+			// return wx.WeshinError{Detail: "expect Directive or CharData before an EndElement"}
 		}
 
 		t, ok := tokens[n-2].(xml.StartElement)
@@ -250,6 +305,9 @@ func parseToFields(body io.Reader) (fields map[string]string, e error) {
 	for t, e := decoder.Token(); e == nil; t, e = decoder.Token() {
 		switch t.(type) {
 		case xml.StartElement:
+			if t.(xml.StartElement).Name.Local == "xml" {
+				continue
+			}
 			tokens = append(tokens, t)
 		case xml.CharData:
 			if len(tokens) == 0 {
@@ -266,6 +324,9 @@ func parseToFields(body io.Reader) (fields map[string]string, e error) {
 				tokens = append(tokens, t.(xml.Directive).Copy())
 			}
 		case xml.EndElement:
+			if t.(xml.EndElement).Name.Local == "xml" {
+				continue
+			}
 			if e = parseXML(t.(xml.EndElement)); e != nil {
 				return nil, e
 			}
@@ -316,34 +377,45 @@ func composeStruct(fields map[string]string, val reflect.Value) error {
 	return nil
 }
 
-func parseField(name string, fields map[string]string, val reflect.Value) error {
-	// wechat specified slice first
-	if val.Kind() == reflect.Slice {
-		return parseSlice(name, fields, val)
-	}
+func parseField(name string, fields map[string]string, v reflect.Value) error {
+	val := v
 	value, ok := fields[name]
 	if !ok {
 		return nil
 	}
 
+	// wechat specified slice first
+	if val.Kind() == reflect.Slice {
+		return parseSlice(name, fields, val)
+	}
+
 	// customized Unmarshaler next
-	if val.Type().Implements(reflect.ValueOf(new(xml.Unmarshaler)).Elem().Type()) {
-		start := xml.StartElement{
-			Name: xml.Name{
-				Local: name,
-			},
+	if val.Type().Implements(reflect.ValueOf(new(Unstringer)).Elem().Type()) {
+		fmt.Println("unmarshalling: ", name)
+
+		if val.Kind() == reflect.Ptr {
+			val = reflect.New(val.Type().Elem())
+			v.Set(val)
 		}
 
-		buf := bytes.NewBuffer([]byte("<"))
-		buf.WriteString(name)
-		buf.WriteByte('>')
-		buf.WriteString(value)
-		buf.WriteString("</")
-		buf.WriteString(name)
-		buf.WriteByte('>')
-		decoder := xml.NewDecoder(buf)
+		// start := xml.StartElement{
+		// 	Name: xml.Name{
+		// 		Local: name,
+		// 	},
+		// }
 
-		ret := val.MethodByName("UnmarshalXML").Call([]reflect.Value{reflect.ValueOf(decoder), reflect.ValueOf(start)})
+		// buf := bytes.NewBuffer([]byte("<"))
+		// buf.WriteString(name)
+		// buf.WriteByte('>')
+		// buf.WriteString(value)
+		// buf.WriteString("</")
+		// buf.WriteString(name)
+		// buf.WriteByte('>')
+		// decoder := xml.NewDecoder(buf)
+
+		// ret := val.MethodByName("UnmarshalXML").Call([]reflect.Value{reflect.ValueOf(decoder), reflect.ValueOf(start)})
+
+		ret := val.MethodByName("Unstring").Call([]reflect.Value{reflect.ValueOf(value)})
 		if len(ret) > 0 {
 			if e, ok := ret[0].Interface().(error); ok && e != nil {
 				return e
@@ -369,7 +441,7 @@ func parseField(name string, fields map[string]string, val reflect.Value) error 
 		b, _ := strconv.ParseBool(value)
 		val.Set(reflect.ValueOf(b))
 	default:
-		return wx.WeshinError{Detail: "unknown type to unmarshalling"}
+		return wx.WeshinError{Detail: "unknown type to unmarshal"}
 	}
 
 	return nil
@@ -403,54 +475,4 @@ func parseSlice(name string, fields map[string]string, val reflect.Value) error 
 	}
 
 	return nil
-}
-
-func parseStruct(val reflect.Value) []field {
-	typ := val.Type()
-	for val.Kind() == reflect.Ptr || val.Kind() == reflect.Interface {
-		val = val.Elem()
-		typ = typ.Elem()
-	}
-
-	// extract xml name and value for signature
-	fields := make([]field, 0, val.NumField())
-	for i := 0; i < val.NumField(); i++ {
-		var name, value string
-		t := typ.Field(i)
-		v := val.Field(i)
-
-		switch t.Name {
-		case "XMLName":
-			continue
-		case "SignType", "Sign":
-			continue
-		case "RequestBase", "ResponseBase":
-			fields = append(fields, parseStruct(v)...)
-			continue
-		}
-
-		tags := strings.Split(t.Tag.Get("xml"), ",")
-		if len(tags) > 0 {
-			name = tags[0]
-			if name == "" {
-				name = t.Name
-			}
-		}
-		switch v.Kind() {
-		case reflect.String:
-			value = v.Interface().(string)
-		case reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Float32, reflect.Float64:
-			value = v.String()
-		case reflect.Struct:
-			value = v.MethodByName("String").Call([]reflect.Value{})[0].Interface().(string)
-		}
-
-		if value == "" {
-			continue
-		}
-
-		fields = append(fields, field{name, value})
-	}
-
-	return fields
 }

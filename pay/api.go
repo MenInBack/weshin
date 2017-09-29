@@ -31,13 +31,12 @@ func (m *MerchantInfo) QueryOrder(req QueryOrderRequest) (*QueryOrderResponse, e
 	return resp, nil
 }
 
-// need certification
 // https://pay.weixin.qq.com/wiki/doc/api/jsapi.php?chapter=9_3
 const urlCloseOrder = "https://api.mch.weixin.qq.com/pay/closeorder"
 
 func (m *MerchantInfo) CloseOrder(req CloseOrderRequest) error {
 	// check parameters
-	if e := m.postXML(urlPreOrder, req, nil, true); e != nil {
+	if e := m.postXML(urlPreOrder, req, nil, false); e != nil {
 		return e
 	}
 	return nil
@@ -58,3 +57,18 @@ func (m *MerchantInfo) RefundOrder(req RefundRequest) (*RefundResponse, error) {
 
 // https://pay.weixin.qq.com/wiki/doc/api/jsapi.php?chapter=9_5
 const urlQueryRefund = "https://api.mch.weixin.qq.com/pay/refundquery"
+
+func (m *MerchantInfo) QueryRefund(req QueryRefundRequest) (*QueryRefundResponse, error) {
+	// check parameters
+
+	resp := new(QueryRefundResponse)
+	if e := m.postXML(urlQueryRefund, req, resp, false); e != nil {
+		return nil, e
+	}
+
+	return resp, nil
+}
+
+const urlDownloadBill = "https://api.mch.weixin.qq.com/pay/downloadbill"
+
+// func (m *MerchantInfo) DownloadBill(req DownloadBillRequest) error {}
