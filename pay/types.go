@@ -16,28 +16,19 @@ type MerchantInfo struct {
 	PaymentKey string
 }
 
-// type RequestBase struct {
-// 	XMLName    xml.Name `xml:"xml"`
-// 	AppID      string   `xml:"appid,omitempty"`
-// 	MerchantID string   `xml:"mch_id,omitempty"`
-// 	Nonce      string   `xml:"nonce_str,omitempty"`
-// 	Sign       string   `xml:"sign,omitempty"`
-// 	SignType   `xml:"sign_type,omitempty"`
+// type ResponseBase struct {
+// 	XMLName          xml.Name `xml:"xml"`
+// 	ReturnCode       CData    `xml:"return_code,omitempty"`
+// 	ReturnMessage    CData    `xml:"return_msg,omitempty"`
+// 	AppID            CData    `xml:"appid,omitempty"`
+// 	MerchantID       CData    `xml:"mch_id,omitempty"`
+// 	Nonce            CData    `xml:"nonce_str,omitempty"`
+// 	Sign             CData    `xml:"sign,omitempty"`
+// 	ResultCode       CData    `xml:"result_code,omitempty"`
+// 	ResultMessage    CData    `xml:"result_msg,omitempty"`
+// 	ErrorCode        CData    `xml:"err_code,omitempty"`
+// 	ErrorDescription CData    `xml:"err_code_des,omitempty"`
 // }
-
-type ResponseBase struct {
-	XMLName          xml.Name `xml:"xml"`
-	ReturnCode       CData    `xml:"return_code,omitempty"`
-	ReturnMessage    CData    `xml:"return_msg,omitempty"`
-	AppID            CData    `xml:"appid,omitempty"`
-	MerchantID       CData    `xml:"mch_id,omitempty"`
-	Nonce            CData    `xml:"nonce_str,omitempty"`
-	Sign             CData    `xml:"sign,omitempty"`
-	ResultCode       CData    `xml:"result_code,omitempty"`
-	ResultMessage    CData    `xml:"result_msg,omitempty"`
-	ErrorCode        CData    `xml:"err_code,omitempty"`
-	ErrorDescription CData    `xml:"err_code_des,omitempty"`
-}
 
 type Unstringer interface {
 	Unstring(string) error
@@ -51,8 +42,9 @@ func (cd CData) String() string {
 	return cd.Data
 }
 
-func (cd *CData) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
-	return d.DecodeElement(cd.Data, &start)
+func (cd *CData) Unstring(s string) error {
+	cd.Data = s
+	return nil
 }
 
 type Fee int
@@ -62,6 +54,12 @@ func (f Fee) String() string {
 		return ""
 	}
 	return strconv.Itoa(int(f))
+}
+
+func (f *Fee) Unstring(s string) error {
+	i, _ := strconv.Atoi(s)
+	*f = Fee(i)
+	return nil
 }
 
 type Time time.Time
@@ -81,13 +79,8 @@ func (t Time) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	return nil
 }
 
-func (t *Time) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
-	s := new(string)
-	e := d.DecodeElement(s, &start)
-	if e != nil {
-		return e
-	}
-	tt, e := time.Parse("20060102150405", *s)
+func (t *Time) Unstring(s string) error {
+	tt, e := time.Parse("20060102150405", s)
 	if e != nil {
 		return e
 	}
@@ -221,14 +214,6 @@ func (si *SceneInfo) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	e.EncodeToken(xml.Directive(buf.Bytes()))
 	e.EncodeToken(start.End())
 	return nil
-}
-
-func (si *SceneInfo) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
-	var buf []byte
-	if e := d.DecodeElement(&buf, &start); e != nil {
-		return e
-	}
-	return json.Unmarshal(buf, si)
 }
 
 func (si *SceneInfo) Unstring(s string) error {

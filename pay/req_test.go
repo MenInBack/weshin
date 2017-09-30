@@ -9,8 +9,8 @@ import (
 )
 
 var m MerchantInfo = MerchantInfo{
-	AppID:      "appid001122",
-	MerchantID: "100100",
+	AppID:      "wx2421b1c4370ec43b",
+	MerchantID: "10000100",
 	PaymentKey: key,
 }
 

@@ -192,15 +192,15 @@ func marshalRequest(fields []field) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func checkResult(r ResponseBase) error {
-	if r.ReturnCode.Data != "SUCCESS" {
-		return wx.WeshinError{Detail: fmt.Sprintf("pay request failed: [%s]%s", r.ReturnCode.Data, r.ReturnMessage.Data)}
-	}
-	if r.ResultCode.Data != "SUCCESS" {
-		return wx.WeshinError{Detail: fmt.Sprintf("pay response failed: [%s]%s", r.ErrorCode.Data, r.ErrorDescription.Data)}
-	}
-	return nil
-}
+// func checkResult(r ResponseBase) error {
+// 	if r.ReturnCode.Data != "SUCCESS" {
+// 		return wx.WeshinError{Detail: fmt.Sprintf("pay request failed: [%s]%s", r.ReturnCode.Data, r.ReturnMessage.Data)}
+// 	}
+// 	if r.ResultCode.Data != "SUCCESS" {
+// 		return wx.WeshinError{Detail: fmt.Sprintf("pay response failed: [%s]%s", r.ErrorCode.Data, r.ErrorDescription.Data)}
+// 	}
+// 	return nil
+// }
 
 func (m *MerchantInfo) handleResponse(body io.Reader, response interface{}) error {
 	fields, e := parseToFields(body)
@@ -212,45 +212,10 @@ func (m *MerchantInfo) handleResponse(body io.Reader, response interface{}) erro
 		fmt.Println("xml to fields: ", fields)
 	}
 
-	// check signature
-	var signature string
-	var signType SignType
-	var ok bool
-	if signature, ok = fields["sign"]; ok {
-		delete(fields, "sign")
-	}
-	if st, ok := fields["sign_type"]; ok {
-		signType = SignType(st)
-		delete(fields, "sign_type")
-	}
-	if signType == "" {
-		signType = MD5
-	}
-
-	fs := make([]field, 0, len(fields))
-	for n, v := range fields {
-		fs = append(fs, field{n, v})
-	}
-
-	s, e := sign(fs, m.PaymentKey, signType)
-	if e != nil {
+	if e = checkResult(fields); e != nil {
 		return e
 	}
-	if s != signature {
-		return wx.WeshinError{Detail: "response signature mismatch"}
-	}
-
-	// check result
-	var resp struct {
-		Base ResponseBase
-		Resp interface{}
-	}
-	resp.Resp = response
-
-	if e = composeStruct(fields, reflect.ValueOf(resp)); e != nil {
-		return e
-	}
-	if e = checkResult(resp.Base); e != nil {
+	if e = composeStruct(fields, reflect.ValueOf(response)); e != nil {
 		return e
 	}
 
@@ -336,6 +301,67 @@ func parseToFields(body io.Reader) (fields map[string]string, e error) {
 	return
 }
 
+func checkResult(fields map[string]string) error {
+	// check return code
+	if rc, ok := fields["return_code"]; !ok {
+		return wx.WeshinError{Detail: "response without return code"}
+	} else if rc != "SUCCESS" {
+		return wx.WeshinError{Detail: fmt.Sprintf("pay request failed: [%s]%s", rc, fields["return_msg"])}
+	}
+
+	// check signature
+	if !donotCheckSign {
+		var signature string
+		var signType SignType
+		var ok bool
+		if signature, ok = fields["sign"]; !ok {
+			return wx.WeshinError{Detail: "response without signature"}
+		}
+		delete(fields, "sign")
+
+		if st, ok := fields["sign_type"]; ok {
+			signType = SignType(st)
+			delete(fields, "sign_type")
+		} else {
+			signType = MD5
+		}
+
+		fs := make([]field, 0, len(fields))
+		for n, v := range fields {
+			fs = append(fs, field{n, v})
+		}
+
+		s, e := sign(fs, m.PaymentKey, signType)
+		if e != nil {
+			return e
+		}
+		if s != signature {
+			return wx.WeshinError{Detail: "response signature mismatch"}
+		}
+	}
+
+	// check result code
+	if rc, ok := fields["result_code"]; !ok {
+		return wx.WeshinError{Detail: "response without result code"}
+	} else if rc != "SUCCESS" {
+		return wx.WeshinError{Detail: fmt.Sprintf("pay request failed: [%s]%s", fields["err_code"], fields["err_code_des"])}
+	}
+
+	// check appid and merchant_id
+	if appID, ok := fields["appid"]; !ok {
+		return wx.WeshinError{Detail: "response without appID"}
+	} else if appID != m.AppID {
+		return wx.WeshinError{Detail: "responded appID mismatch"}
+	}
+	if merchantID, ok := fields["mch_id"]; !ok {
+		return wx.WeshinError{Detail: "response without merchantID"}
+	} else if merchantID != m.MerchantID {
+		return wx.WeshinError{Detail: "responded merchantID mismatch"}
+	}
+
+	return nil
+}
+
 // fields to struct
 func composeStruct(fields map[string]string, val reflect.Value) error {
 	typ := val.Type()
@@ -379,43 +405,39 @@ func composeStruct(fields map[string]string, val reflect.Value) error {
 
 func parseField(name string, fields map[string]string, v reflect.Value) error {
 	val := v
-	value, ok := fields[name]
-	if !ok {
-		return nil
-	}
 
 	// wechat specified slice first
 	if val.Kind() == reflect.Slice {
 		return parseSlice(name, fields, val)
 	}
 
-	// customized Unmarshaler next
-	if val.Type().Implements(reflect.ValueOf(new(Unstringer)).Elem().Type()) {
-		fmt.Println("unmarshalling: ", name)
+	value, ok := fields[name]
+	if !ok {
+		return nil
+	}
 
+	typ := val.Type()
+
+	tUnstringer := reflect.ValueOf(new(Unstringer)).Elem().Type()
+	// customized Unmarshaler next
+	if typ.Implements(tUnstringer) {
 		if val.Kind() == reflect.Ptr {
-			val = reflect.New(val.Type().Elem())
+			val = reflect.New(typ.Elem())
 			v.Set(val)
 		}
 
-		// start := xml.StartElement{
-		// 	Name: xml.Name{
-		// 		Local: name,
-		// 	},
-		// }
-
-		// buf := bytes.NewBuffer([]byte("<"))
-		// buf.WriteString(name)
-		// buf.WriteByte('>')
-		// buf.WriteString(value)
-		// buf.WriteString("</")
-		// buf.WriteString(name)
-		// buf.WriteByte('>')
-		// decoder := xml.NewDecoder(buf)
-
-		// ret := val.MethodByName("UnmarshalXML").Call([]reflect.Value{reflect.ValueOf(decoder), reflect.ValueOf(start)})
-
 		ret := val.MethodByName("Unstring").Call([]reflect.Value{reflect.ValueOf(value)})
+		if len(ret) > 0 {
+			if e, ok := ret[0].Interface().(error); ok && e != nil {
+				return e
+			}
+		}
+		return nil
+	}
+
+	if val.CanAddr() && val.Addr().Type().Implements(tUnstringer) {
+
+		ret := val.Addr().MethodByName("Unstring").Call([]reflect.Value{reflect.ValueOf(value)})
 		if len(ret) > 0 {
 			if e, ok := ret[0].Interface().(error); ok && e != nil {
 				return e
@@ -428,20 +450,21 @@ func parseField(name string, fields map[string]string, v reflect.Value) error {
 	switch val.Kind() {
 	case reflect.String:
 		val.SetString(value)
+
 	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
 		i, _ := strconv.ParseInt(value, 10, 64)
-		val.Set(reflect.ValueOf(i))
-	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		u, _ := strconv.ParseUint(value, 10, 64)
-		val.Set(reflect.ValueOf(u))
-	case reflect.Float32, reflect.Float64:
-		f, _ := strconv.ParseFloat(value, 64)
-		val.Set(reflect.ValueOf(f))
-	case reflect.Bool:
-		b, _ := strconv.ParseBool(value)
-		val.Set(reflect.ValueOf(b))
+		val.SetInt(i)
+	// case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+	// 	u, _ := strconv.ParseUint(value, 10, 64)
+	// 	val.Set(reflect.ValueOf(u))
+	// case reflect.Float32, reflect.Float64:
+	// 	f, _ := strconv.ParseFloat(value, 64)
+	// 	val.Set(reflect.ValueOf(f))
+	// case reflect.Bool:
+	// 	b, _ := strconv.ParseBool(value)
+	// 	val.Set(reflect.ValueOf(b))
 	default:
-		return wx.WeshinError{Detail: "unknown type to unmarshal"}
+		return wx.WeshinError{Detail: "unsupported type to unmarshal"}
 	}
 
 	return nil
@@ -452,27 +475,29 @@ func parseSlice(name string, fields map[string]string, val reflect.Value) error 
 	namer := func(i int) string {
 		return fmt.Sprintf("%s_%d", name, i)
 	}
+	typ := val.Type().Elem()
+
+	values := make([]string, 0, 1)
+
 	for i := 0; ; i++ {
 		n := namer(i)
 		if _, ok := fields[n]; !ok {
 			break
 		}
-
-		v := reflect.New(val.Elem().Type())
-		if e := parseField(n, fields, v); e != nil {
-			return e
-		}
-
-		if val.Cap() < i+1 {
-			if val.Cap() == 0 {
-				val.SetCap(1)
-			} else {
-				val.SetCap(2 * val.Cap())
-			}
-		}
-		val.SetLen(i + 1)
-		val.Index(i).Set(v)
+		values = append(values, fields[n])
 	}
 
+	s := reflect.MakeSlice(val.Type(), len(values), len(values))
+	for i := 0; i < len(values); i++ {
+		v := reflect.New(typ)
+		fs := map[string]string{
+			name: values[i],
+		}
+		if e := parseField(name, fs, v.Elem()); e != nil {
+			return e
+		}
+		s.Index(i).Set(v.Elem())
+	}
+	val.Set(s)
 	return nil
 }

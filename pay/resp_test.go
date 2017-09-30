@@ -2,12 +2,14 @@ package pay
 
 import (
 	"bytes"
-	"encoding/xml"
 	"fmt"
 	"testing"
 )
 
+var donotCheckSign bool
+
 func TestResponsePreOrder(t *testing.T) {
+	donotCheckSign = true
 	data := `<xml>
 	<return_code><![CDATA[SUCCESS]]></return_code>
 	<return_msg><![CDATA[OK]]></return_msg>
@@ -21,21 +23,16 @@ func TestResponsePreOrder(t *testing.T) {
 	<trade_type><![CDATA[JSAPI]]></trade_type>
  </xml>`
 
-	resp := struct {
-		*ResponseBase
-		*PreOrderResponse
-	}{
-		new(ResponseBase),
-		new(PreOrderResponse),
-	}
-	e := xml.Unmarshal([]byte(data), &resp)
+	resp := new(PreOrderResponse)
+	e := m.handleResponse(bytes.NewBufferString(data), resp)
 	if e != nil {
 		t.Error(e)
 	}
-	fmt.Printf("base: %+v, resp: %+v", resp.ResponseBase, resp.PreOrderResponse)
+	fmt.Printf("resp: %+v", resp)
 }
 
 func TestResponseQueryOrder(t *testing.T) {
+	donotCheckSign = true
 	data := `<xml>
 	<return_code><![CDATA[SUCCESS]]></return_code>
 	<return_msg><![CDATA[OK]]></return_msg>
@@ -58,34 +55,8 @@ func TestResponseQueryOrder(t *testing.T) {
 	<trade_state><![CDATA[SUCCESS]]></trade_state>
  </xml>`
 
-	resp := struct {
-		*ResponseBase
-		*QueryOrderResponse
-	}{
-		new(ResponseBase),
-		new(QueryOrderResponse),
-	}
-	e := xml.Unmarshal([]byte(data), &resp)
-	if e != nil {
-		t.Error(e)
-	}
-	fmt.Printf("base: %+v, resp: %+v", resp.ResponseBase, resp.QueryOrderResponse)
-}
-
-func TestResponseBase(t *testing.T) {
-	data := `
-	<xml>
-	<return_code><![CDATA[SUCCESS]]></return_code>
-	<return_msg><![CDATA[OK]]></return_msg>
-	<appid><![CDATA[wx2421b1c4370ec43b]]></appid>
-	<mch_id><![CDATA[10000100]]></mch_id>
-	<nonce_str><![CDATA[BFK89FC6rxKCOjLX]]></nonce_str>
-	<sign><![CDATA[72B321D92A7BFA0B2509F3D13C7B1631]]></sign>
-	<result_code><![CDATA[SUCCESS]]></result_code>
-	<result_msg><![CDATA[OK]]></result_msg>
- </xml>`
-	resp := new(ResponseBase)
-	e := xml.Unmarshal([]byte(data), &resp)
+	resp := new(QueryOrderResponse)
+	e := m.handleResponse(bytes.NewBufferString(data), resp)
 	if e != nil {
 		t.Error(e)
 	}
@@ -120,6 +91,36 @@ func TestParseResponse(t *testing.T) {
 }
 
 func TestRefundResponse(t *testing.T) {
+	donotCheckSign = true
+	data := `<xml>
+	<appid>wx2421b1c4370ec43b</appid>
+	<mch_id>10000100</mch_id>
+	<nonce_str>6cefdb308e1e2e8aabd48cf79e546a02</nonce_str> 
+	<out_refund_no>1415701182</out_refund_no>
+	<out_trade_no>1415757673</out_trade_no>
+	<refund_fee>1</refund_fee>
+	<total_fee>1</total_fee>
+	<transaction_id></transaction_id>
+	<result_code><![CDATA[SUCCESS]]></result_code>
+	<return_code><![CDATA[SUCCESS]]></return_code>
+	<return_msg><![CDATA[OK]]></return_msg>
+	<sign>FE56DD4AA85C0EECA82C35595A69E153</sign>
+ </xml>`
+
+	resp := new(RefundResponse)
+	m := &MerchantInfo{
+		PaymentKey: key,
+	}
+	e := m.handleResponse(bytes.NewBuffer([]byte(data)), resp)
+
+	if e != nil {
+		t.Error(e)
+	}
+	fmt.Printf("resp: %+v", resp)
+}
+
+func TestQueryRefundResponse(t *testing.T) {
+	donotCheckSign = true
 	data := `<xml>
 <appid><![CDATA[wx2421b1c4370ec43b]]></appid>
 <mch_id><![CDATA[10000100]]></mch_id>
