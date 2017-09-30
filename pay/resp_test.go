@@ -6,8 +6,6 @@ import (
 	"testing"
 )
 
-var donotCheckSign bool
-
 func TestResponsePreOrder(t *testing.T) {
 	donotCheckSign = true
 	data := `<xml>

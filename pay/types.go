@@ -9,26 +9,29 @@ import (
 )
 
 var verbose bool
+var donotCheckSign bool
 
 type MerchantInfo struct {
 	AppID      string
 	MerchantID string
 	PaymentKey string
+	PayNoticeHander
+	RefundNoticeHandler
 }
 
-// type ResponseBase struct {
-// 	XMLName          xml.Name `xml:"xml"`
-// 	ReturnCode       CData    `xml:"return_code,omitempty"`
-// 	ReturnMessage    CData    `xml:"return_msg,omitempty"`
-// 	AppID            CData    `xml:"appid,omitempty"`
-// 	MerchantID       CData    `xml:"mch_id,omitempty"`
-// 	Nonce            CData    `xml:"nonce_str,omitempty"`
-// 	Sign             CData    `xml:"sign,omitempty"`
-// 	ResultCode       CData    `xml:"result_code,omitempty"`
-// 	ResultMessage    CData    `xml:"result_msg,omitempty"`
-// 	ErrorCode        CData    `xml:"err_code,omitempty"`
-// 	ErrorDescription CData    `xml:"err_code_des,omitempty"`
-// }
+type ResponseBase struct {
+	XMLName          xml.Name `xml:"xml"`
+	ReturnCode       CData    `xml:"return_code,omitempty"`
+	ReturnMessage    CData    `xml:"return_msg,omitempty"`
+	AppID            CData    `xml:"appid,omitempty"`
+	MerchantID       CData    `xml:"mch_id,omitempty"`
+	Nonce            CData    `xml:"nonce_str,omitempty"`
+	Sign             CData    `xml:"sign,omitempty"`
+	ResultCode       CData    `xml:"result_code,omitempty"`
+	ResultMessage    CData    `xml:"result_msg,omitempty"`
+	ErrorCode        CData    `xml:"err_code,omitempty"`
+	ErrorDescription CData    `xml:"err_code_des,omitempty"`
+}
 
 type Unstringer interface {
 	Unstring(string) error
@@ -47,6 +50,10 @@ func (cd *CData) Unstring(s string) error {
 	return nil
 }
 
+func (cd *CData) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	return d.DecodeElement(cd.Data, &start)
+}
+
 type Fee int
 
 func (f Fee) String() string {
@@ -62,6 +69,10 @@ func (f *Fee) Unstring(s string) error {
 	return nil
 }
 
+func (f *Fee) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	return d.DecodeElement((*int)(f), &start)
+}
+
 type Time time.Time
 
 func (t Time) String() string {
@@ -69,6 +80,15 @@ func (t Time) String() string {
 		return ""
 	}
 	return time.Time(t).Format("20060102150405")
+}
+
+func (t *Time) Unstring(s string) error {
+	tt, e := time.Parse("20060102150405", s)
+	if e != nil {
+		return e
+	}
+	*t = Time(tt)
+	return nil
 }
 
 func (t Time) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
@@ -79,12 +99,16 @@ func (t Time) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	return nil
 }
 
-func (t *Time) Unstring(s string) error {
-	tt, e := time.Parse("20060102150405", s)
-	if e != nil {
+func (t *Time) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	var s string
+	if e := d.DecodeElement(&s, &start); e != nil {
 		return e
 	}
-	*t = Time(tt)
+	if tt, e := time.Parse("20060102150405", s); e != nil {
+		return e
+	} else {
+		*t = Time(tt)
+	}
 	return nil
 }
 
@@ -143,6 +167,20 @@ type CouponType string
 const (
 	CouponCash   CouponType = "CASH"
 	CouponNoCash CouponType = "NO_CASH"
+)
+
+type BillType string
+
+const (
+	BillAll     BillType = "ALL"
+	BillSuccess BillType = "SUCCESS"
+	BillRefund  BillType = "REFUND"
+)
+
+type TarType string
+
+const (
+	GZIP TarType = "GZIP"
 )
 
 type ErrorCode string
@@ -319,4 +357,56 @@ type QueryRefundResponse struct {
 	RefundAccounts         []CData        `xml:"refund_account,omitempty"`      // 退款资金来源
 	RefundReceiverAccounts []CData        `xml:"refund_recv_account,omitempty"` // 退款入账账户
 	RefundSuccessTime      []Time         `xml:"refund_success_time,omitempty"`
+}
+
+type DownloadBillRequest struct {
+	DeviceInfo string `xml:"device_info,omitempty"`
+	BillData   string `xml:"bill_data,omitempty"`
+	BillType   `xml:"bill_type,omitempty"`
+	TarType    `xml:"tar_type,omitempty"`
+}
+
+type NoticeResult struct {
+	ReturnCode    CData `xml:"return_code,omitempty"`
+	ReturnMessage CData `xml:"return_msg,omitempty"`
+}
+
+type PayNotice struct {
+	TradeState
+	DeviceInfo     CData     `xml:"device_info,omitempty"`  // 设备号
+	OpenID         CData     `xml:"openid,omitempty"`       // 用户标识
+	IsSubscribe    CData     `xml:"is_subscribe,omitempty"` // 是否关注公众账号
+	TradeType      TradeType `xml:"trade_type,omitempty"`
+	BankType       BankType  `xml:"bank_type,omitempty"`            // 付款银行
+	TotalFee       Fee       `xml:"total_fee,omitempty"`            // 标价金额
+	SettlementFee  Fee       `xml:"settlement_total_fee,omitempty"` // 应结订单金额, 当订单使用了免充值型优惠券后返回该参数，应结订单金额=订单金额-免充值优惠券金额。
+	FeeType        FeeType   `xml:"fee_type,omitempty"`
+	CashFee        Fee       `xml:"cash_fee,omitempty"` // 现金支付金额
+	CashFeeType    FeeType   `xml:"cash_fee_type,omitempty"`
+	CouponFee      Fee       `xml:"coupon_fee,omitempty"`     // 代金券金额
+	CouponCount    int       `xml:"coupon_count,omitempty"`   // 代金券使用数量
+	CouponTypes    []CData   `xml:"coupon_type,omitempty"`    // 代金券类型
+	CouponIDs      []CData   `xml:"coupon_id,omitempty"`      // 代金券ID
+	CouponFees     []CData   `xml:"coupon_fee,omitempty"`     // 单个代金券支付金额
+	TransactionID  CData     `xml:"transaction_id,omitempty"` // 微信支付订单号
+	TradeNo        CData     `xml:"out_trade_no,omitempty"`   // 商户订单号
+	Attach         CData     `xml:"attach,omitempty"`         // 附加数据
+	TimeEnd        Time      `xml:"time_end,omitempty"`
+	TradeStateDesc CData     `xml:"trade_state_desc,omitempty"`
+}
+
+type RefundNotice struct {
+	TransactionID         CData        `xml:"transaction_id,omitempty"`        // 微信订单号
+	TradeNo               CData        `xml:"out_trade_no,omitempty"`          // 商户订单号
+	RefundNo              CData        `xml:"out_refund_no,omitempty"`         // 商户退款单号
+	RefundID              CData        `xml:"refund_id,omitempty"`             // 微信退款单号
+	TotalFee              Fee          `xml:"total_fee,omitempty"`             // 订单金额
+	SettlementFee         Fee          `xml:"settlement_total_fee,omitempty"`  // 应结订单金额, 去掉非充值代金券金额后的订单总金额，应结订单金额=订单金额-非充值代金券金额，应结订单金额<=订单金额。
+	RefundFees            Fee          `xml:"refund_fee,omitempty"`            // 申请退款金额
+	SettlementRefundFees  Fee          `xml:"settlement_refund_fee,omitempty"` // 退款金额
+	RefundStatus          RefundStatus `xml:"refund_status,omitempty"`
+	SuccessTime           Time         `xml:"success_time,omitempty"`
+	RefundReceiverAccount CData        `xml:"refund_recv_account,omitempty"` // 退款入账账户
+	RefundAccount         CData        `xml:"refund_account,omitempty"`      // 退款资金来源
+	RefundRequestSource   string       `xml:"refund_request_source,omitempty"`
 }

@@ -212,7 +212,16 @@ func (m *MerchantInfo) handleResponse(body io.Reader, response interface{}) erro
 		fmt.Println("xml to fields: ", fields)
 	}
 
-	if e = checkResult(fields); e != nil {
+	if e = checkReturnCode(fields); e != nil {
+		return e
+	}
+	if e = m.checkAppID(fields); e != nil {
+		return e
+	}
+	if e = m.checkSign(fields); e != nil {
+		return e
+	}
+	if e = checkResultCode(fields); e != nil {
 		return e
 	}
 	if e = composeStruct(fields, reflect.ValueOf(response)); e != nil {
@@ -301,7 +310,7 @@ func parseToFields(body io.Reader) (fields map[string]string, e error) {
 	return
 }
 
-func checkResult(fields map[string]string) error {
+func checkReturnCode(fields map[string]string) error {
 	// check return code
 	if rc, ok := fields["return_code"]; !ok {
 		return wx.WeshinError{Detail: "response without return code"}
@@ -309,44 +318,10 @@ func checkResult(fields map[string]string) error {
 		return wx.WeshinError{Detail: fmt.Sprintf("pay request failed: [%s]%s", rc, fields["return_msg"])}
 	}
 
-	// check signature
-	if !donotCheckSign {
-		var signature string
-		var signType SignType
-		var ok bool
-		if signature, ok = fields["sign"]; !ok {
-			return wx.WeshinError{Detail: "response without signature"}
-		}
-		delete(fields, "sign")
+	return nil
+}
 
-		if st, ok := fields["sign_type"]; ok {
-			signType = SignType(st)
-			delete(fields, "sign_type")
-		} else {
-			signType = MD5
-		}
-
-		fs := make([]field, 0, len(fields))
-		for n, v := range fields {
-			fs = append(fs, field{n, v})
-		}
-
-		s, e := sign(fs, m.PaymentKey, signType)
-		if e != nil {
-			return e
-		}
-		if s != signature {
-			return wx.WeshinError{Detail: "response signature mismatch"}
-		}
-	}
-
-	// check result code
-	if rc, ok := fields["result_code"]; !ok {
-		return wx.WeshinError{Detail: "response without result code"}
-	} else if rc != "SUCCESS" {
-		return wx.WeshinError{Detail: fmt.Sprintf("pay request failed: [%s]%s", fields["err_code"], fields["err_code_des"])}
-	}
-
+func (m *MerchantInfo) checkAppID(fields map[string]string) error {
 	// check appid and merchant_id
 	if appID, ok := fields["appid"]; !ok {
 		return wx.WeshinError{Detail: "response without appID"}
@@ -359,6 +334,54 @@ func checkResult(fields map[string]string) error {
 		return wx.WeshinError{Detail: "responded merchantID mismatch"}
 	}
 
+	return nil
+}
+
+func (m *MerchantInfo) checkSign(fields map[string]string) error {
+	// debug only
+	if donotCheckSign {
+		return nil
+	}
+
+	// check signature
+	var signature string
+	var signType SignType
+	var ok bool
+	if signature, ok = fields["sign"]; !ok {
+		return wx.WeshinError{Detail: "response without signature"}
+	}
+	delete(fields, "sign")
+
+	if st, ok := fields["sign_type"]; ok {
+		signType = SignType(st)
+		delete(fields, "sign_type")
+	} else {
+		signType = MD5
+	}
+
+	fs := make([]field, 0, len(fields))
+	for n, v := range fields {
+		fs = append(fs, field{n, v})
+	}
+
+	s, e := sign(fs, m.PaymentKey, signType)
+	if e != nil {
+		return e
+	}
+	if s != signature {
+		return wx.WeshinError{Detail: "response signature mismatch"}
+	}
+
+	return nil
+}
+
+func checkResultCode(fields map[string]string) error {
+	// check result code
+	if rc, ok := fields["result_code"]; !ok {
+		return wx.WeshinError{Detail: "response without result code"}
+	} else if rc != "SUCCESS" {
+		return wx.WeshinError{Detail: fmt.Sprintf("pay request failed: [%s]%s", fields["err_code"], fields["err_code_des"])}
+	}
 	return nil
 }
 

@@ -3,10 +3,12 @@ package pay
 
 import (
 	"bytes"
+	"crypto/aes"
 	"crypto/hmac"
 	"crypto/md5"
 	crand "crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"math/rand"
 	"sort"
@@ -81,4 +83,34 @@ func randomString(n int) string {
 type field struct {
 	name  string
 	value string
+}
+
+//解密步骤如下：
+//（1）对加密串A做base64解码，得到加密串B
+//（2）对商户key做md5，得到32位小写key* ( key设置路径：微信商户平台(pay.weixin.qq.com)-->账户设置-->API安全-->密钥设置 )
+//（3）用key*对加密串B做AES-256-ECB解密
+func decodeNoticeMessage(info, key string) ([]byte, error) {
+	cipher := make([]byte, base64.RawStdEncoding.DecodedLen(len(info)))
+	base64.RawStdEncoding.Decode(cipher, []byte(key))
+
+	hashKey := md5.Sum([]byte(key))
+	block, e := aes.NewCipher(hashKey[:])
+	if e != nil {
+		return nil, e
+	}
+
+	// padding cipher
+	if len(cipher)%block.BlockSize() != 0 {
+		pad := make([]byte, block.BlockSize()-len(cipher)%block.BlockSize())
+		cipher = append(cipher, pad...)
+	}
+	buf := cipher
+
+	// aes-256-ecb decrypt
+	for len(buf) > 0 {
+		block.Decrypt(buf, buf)
+		buf = buf[block.BlockSize():]
+	}
+
+	return buf, nil
 }
