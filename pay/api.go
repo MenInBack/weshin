@@ -11,7 +11,7 @@ import (
 
 // https://pay.weixin.qq.com/wiki/doc/api/jsapi.php?chapter=7_7&index=6
 func (m *MerchantInfo) PrepareJSAPIPay(req *PreOrderRequest) (*JSPayRequest, error) {
-	req.TradeType = JSAPI
+	req.TradeType = JSAPIPay
 	req.DeviceInfo = "WEB"
 
 	if req.OpenID == "" {
@@ -52,7 +52,7 @@ func (m *MerchantInfo) PrepareJSAPIPay(req *PreOrderRequest) (*JSPayRequest, err
 
 // https://pay.weixin.qq.com/wiki/doc/api/app/app.php?chapter=9_12&index=2
 func PrepareAppPay(req *PreOrderRequest) (*AppPayRequest, error) {
-	req.TradeType = APP
+	req.TradeType = AppPay
 	req.DeviceInfo = "WEB"
 
 	resp, e := m.preOrder(req)
@@ -90,8 +90,8 @@ func PrepareAppPay(req *PreOrderRequest) (*AppPayRequest, error) {
 	return pr, nil
 }
 
-func (m *MerchantInfo) PrepareQRPay(req *PreOrderRequest) (codeURL string, _ error) {
-	req.TradeType = NATIVE
+func (m *MerchantInfo) PrepareQRPay(req *PreOrderRequest) (codeURL string, e error) {
+	req.TradeType = QRPay
 	req.DeviceInfo = "WEB"
 
 	resp, e := m.preOrder(req)
@@ -103,6 +103,22 @@ func (m *MerchantInfo) PrepareQRPay(req *PreOrderRequest) (codeURL string, _ err
 	}
 
 	return resp.CodeURL.Data, nil
+}
+
+// https://pay.weixin.qq.com/wiki/doc/api/H5.php?chapter=9_20&index=1
+func (m *MerchantInfo) PrepareWebPay(req *PreOrderRequest) (url string, e error) {
+	req.TradeType = WebPay
+	req.DeviceInfo = "WEB"
+
+	resp, e := m.preOrder(req)
+	if e != nil {
+		return "", e
+	}
+	if verbose {
+		log.Println("web url for mobile web pay: ", resp.WebURL)
+	}
+
+	return resp.WebURL.Data, nil
 }
 
 // https://pay.weixin.qq.com/wiki/doc/api/jsapi.php?chapter=9_1

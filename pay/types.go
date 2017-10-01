@@ -170,9 +170,10 @@ const (
 type TradeType string
 
 const (
-	JSAPI  TradeType = "JSAPI"
-	NATIVE TradeType = "NATIVE"
-	APP    TradeType = "APP"
+	JSAPIPay TradeType = "JSAPI"  // 公众号支付
+	QRPay    TradeType = "NATIVE" // 扫码支付
+	AppPay   TradeType = "APP"    // APP 支付
+	WebPay   TradeType = "MWEB"   // H5 支付
 )
 
 type LimitPay string
@@ -284,6 +285,7 @@ type PreOrderResponse struct {
 	TradeType  `xml:"trade_type,omitempty"`
 	PrepayID   CData `xml:"prepay_id,omitempty"`
 	CodeURL    CData `xml:"code_url,omitempty"`
+	WebURL     CData `xml:"mweb_url,omitemtpy"` // mweb_url为拉起微信支付收银台的中间页面，可通过访问该url来拉起微信客户端，完成支付,mweb_url的有效期为5分钟。
 }
 
 type QueryOrderRequest struct {
