@@ -44,3 +44,16 @@ func BenchmarkRandomString(b *testing.B) {
 		_ = randomString(32)
 	}
 }
+
+func TestDecodeMessage(t *testing.T) {
+	info := `T87GAHG17TGAHG1TGHAHAHA1Y1CIOA9UGJH1GAHV871HAGAGQYQQPOOJMXNBCXBVNMNMAJAA`
+
+	data, e := decodeNoticeMessage(info, key)
+	if e != nil {
+		t.Error(e)
+		return
+	}
+
+	fmt.Println(data)
+
+}

@@ -9,6 +9,7 @@ import (
 	crand "crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"math/rand"
 	"sort"
@@ -91,10 +92,13 @@ type field struct {
 //（3）用key*对加密串B做AES-256-ECB解密
 func decodeNoticeMessage(info, key string) ([]byte, error) {
 	cipher := make([]byte, base64.RawStdEncoding.DecodedLen(len(info)))
-	base64.RawStdEncoding.Decode(cipher, []byte(key))
+	base64.RawStdEncoding.Decode(cipher, []byte(info))
 
 	hashKey := md5.Sum([]byte(key))
-	block, e := aes.NewCipher(hashKey[:])
+	hexKey := make([]byte, hex.EncodedLen(len(hashKey)))
+	hex.Encode(hexKey, hashKey[:])
+
+	block, e := aes.NewCipher(hexKey)
 	if e != nil {
 		return nil, e
 	}
@@ -107,9 +111,9 @@ func decodeNoticeMessage(info, key string) ([]byte, error) {
 	buf := cipher
 
 	// aes-256-ecb decrypt
-	for len(buf) > 0 {
-		block.Decrypt(buf, buf)
-		buf = buf[block.BlockSize():]
+	for len(cipher) > 0 {
+		block.Decrypt(buf, cipher)
+		cipher = cipher[block.BlockSize():]
 	}
 
 	return buf, nil
