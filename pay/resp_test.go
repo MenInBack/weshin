@@ -106,9 +106,6 @@ func TestRefundResponse(t *testing.T) {
  </xml>`
 
 	resp := new(RefundResponse)
-	m := &MerchantInfo{
-		PaymentKey: key,
-	}
 	e := m.handleResponse(bytes.NewBuffer([]byte(data)), resp)
 
 	if e != nil {
@@ -119,6 +116,8 @@ func TestRefundResponse(t *testing.T) {
 
 func TestQueryRefundResponse(t *testing.T) {
 	donotCheckSign = true
+	verbose = true
+
 	data := `<xml>
 <appid><![CDATA[wx2421b1c4370ec43b]]></appid>
 <mch_id><![CDATA[10000100]]></mch_id>
@@ -138,9 +137,6 @@ func TestQueryRefundResponse(t *testing.T) {
 `
 
 	resp := new(QueryRefundResponse)
-	m := &MerchantInfo{
-		PaymentKey: key,
-	}
 	e := m.handleResponse(bytes.NewBuffer([]byte(data)), resp)
 
 	if e != nil {

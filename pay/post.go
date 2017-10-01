@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/MenInBack/weshin/crypto"
 	"github.com/MenInBack/weshin/wx"
 )
 
@@ -104,7 +105,7 @@ func (m *MerchantInfo) prepareRequest(req interface{}) ([]byte, error) {
 	fields = append(fields,
 		field{"app_id", m.AppID},
 		field{"mch_id", m.MerchantID},
-		field{"nonce", randomString(NonceLength)})
+		field{"nonce", string(crypto.RandString(NonceLength))})
 
 	s, err := sign(fields, m.PaymentKey, MD5)
 	if err != nil {

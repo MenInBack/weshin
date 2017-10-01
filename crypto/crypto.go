@@ -160,10 +160,7 @@ func (mc *MessageCrypto) messagePadding(msg []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	rStr, err := randString(randStringLen)
-	if err != nil {
-		return nil, err
-	}
+	rStr := RandString(randStringLen)
 
 	data := bytes.NewBuffer(rStr)
 	data.Write(size.Bytes())

@@ -34,17 +34,6 @@ func TestSign(t *testing.T) {
 	fmt.Println(s)
 }
 
-func TestRandomString(t *testing.T) {
-	s := randomString(16)
-	fmt.Println(s)
-}
-
-func BenchmarkRandomString(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		_ = randomString(32)
-	}
-}
-
 func TestDecodeMessage(t *testing.T) {
 	info := `T87GAHG17TGAHG1TGHAHAHA1Y1CIOA9UGJH1GAHV871HAGAGQYQQPOOJMXNBCXBVNMNMAJAA`
 
