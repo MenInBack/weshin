@@ -12,11 +12,32 @@ var verbose bool
 var donotCheckSign bool
 
 type MerchantInfo struct {
-	AppID      string
-	MerchantID string
-	PaymentKey string
+	AppID           string
+	MerchantID      string
+	PaymentKey      string
+	PayNotifyURL    string
+	RefundNotifyURL string
 	PayNoticeHander
 	RefundNoticeHandler
+}
+
+type JSPayRequest struct {
+	AppID     string `json:"appId,omitempty"`
+	TimeStamp string `json:"timeStamp,omitempty"`
+	Nonce     string `json:"nonceStr,omitempty"`
+	Package   string `json:"package,omitempty"`
+	SignType  `json:"signType,omitempty"`
+	PaySign   string `json:"paySign,omitempty"`
+}
+
+type AppPayRequest struct {
+	AppID     string `json:"appid,omitempty"`
+	PartnerID string `json:"partnerid,omitempty"` // merchantID
+	PrePayID  string `json:"prepayid,omitempty"`
+	Package   string `json:"package,omitempty"`
+	Nonce     string `json:"noncestr,omitempty"`
+	TimeStamp string `json:"timestamp,omitempty"`
+	Sign      string `json:"sign,omitempty"`
 }
 
 type ResponseBase struct {

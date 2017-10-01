@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -59,7 +60,7 @@ func (m *MerchantInfo) postXML(path string, request, response interface{}, safe 
 		return e
 	}
 	if verbose {
-		fmt.Println("request path: ", path, " body: ", string(body))
+		log.Println("request path: ", path, " body: ", string(body))
 	}
 
 	req, err := http.NewRequest("POST", path, bytes.NewBuffer(body))
@@ -83,7 +84,7 @@ func (m *MerchantInfo) postXML(path string, request, response interface{}, safe 
 	}
 	defer resp.Body.Close()
 	if verbose {
-		fmt.Println("response: ", resp)
+		log.Println("response: ", resp)
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -114,7 +115,7 @@ func (m *MerchantInfo) prepareRequest(req interface{}) ([]byte, error) {
 	fields = append(fields, field{"sign", s}, field{"sign_type", "MD5"})
 
 	if verbose {
-		fmt.Println("request fields: ", fields)
+		log.Println("request fields: ", fields)
 	}
 
 	return marshalRequest(fields)
@@ -193,16 +194,6 @@ func marshalRequest(fields []field) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// func checkResult(r ResponseBase) error {
-// 	if r.ReturnCode.Data != "SUCCESS" {
-// 		return wx.WeshinError{Detail: fmt.Sprintf("pay request failed: [%s]%s", r.ReturnCode.Data, r.ReturnMessage.Data)}
-// 	}
-// 	if r.ResultCode.Data != "SUCCESS" {
-// 		return wx.WeshinError{Detail: fmt.Sprintf("pay response failed: [%s]%s", r.ErrorCode.Data, r.ErrorDescription.Data)}
-// 	}
-// 	return nil
-// }
-
 func (m *MerchantInfo) handleResponse(body io.Reader, response interface{}) error {
 	fields, e := parseToFields(body)
 	if e != nil {
@@ -210,7 +201,7 @@ func (m *MerchantInfo) handleResponse(body io.Reader, response interface{}) erro
 	}
 
 	if verbose {
-		fmt.Println("xml to fields: ", fields)
+		log.Println("xml to fields: ", fields)
 	}
 
 	if e = checkReturnCode(fields); e != nil {
