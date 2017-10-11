@@ -51,7 +51,7 @@ func (m *MerchantInfo) PrepareJSAPIPay(req *PreOrderRequest) (*JSPayRequest, err
 }
 
 // https://pay.weixin.qq.com/wiki/doc/api/app/app.php?chapter=9_12&index=2
-func PrepareAppPay(req *PreOrderRequest) (*AppPayRequest, error) {
+func (m *MerchantInfo) PrepareAppPay(req *PreOrderRequest) (*AppPayRequest, error) {
 	req.TradeType = AppPay
 	req.DeviceInfo = "WEB"
 
