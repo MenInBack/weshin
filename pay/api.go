@@ -1,8 +1,13 @@
 package pay
 
 import (
+	"bufio"
+	"bytes"
+	"io"
 	"log"
+	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/MenInBack/weshin/crypto"
@@ -202,7 +207,7 @@ func (m *MerchantInfo) CloseOrder(req *CloseOrderRequest) error {
 // https://pay.weixin.qq.com/wiki/doc/api/jsapi.php?chapter=9_4
 const urlRefundOrder = "https://api.mch.weixin.qq.com/secapi/pay/refund"
 
-func (m *MerchantInfo) RefundOrder(req RefundRequest) (*RefundResponse, error) {
+func (m *MerchantInfo) RefundOrder(req *RefundRequest) (*RefundResponse, error) {
 	// check parameters
 	if req.TransactionID == "" && req.TradeNo == "" {
 		return nil, wx.ParameterError{"no tradeNo nor transactionID"}
@@ -231,10 +236,10 @@ func (m *MerchantInfo) RefundOrder(req RefundRequest) (*RefundResponse, error) {
 // https://pay.weixin.qq.com/wiki/doc/api/jsapi.php?chapter=9_5
 const urlQueryRefund = "https://api.mch.weixin.qq.com/pay/refundquery"
 
-func (m *MerchantInfo) QueryRefund(req QueryRefundRequest) (*QueryRefundResponse, error) {
+func (m *MerchantInfo) QueryRefund(req *QueryRefundRequest) (*QueryRefundResponse, error) {
 	// check parameters
 	if req.TradeNo == "" && req.TransactionID == "" && req.RefundID == "" && req.RefundNo == "" {
-		return nil, wx.ParameterError{"none of tradeNo, transactionID, refundID nor refundNo"}
+		return nil, wx.ParameterError{"none of tradeNo, transactionID, refundID nor refundNo provided"}
 	}
 
 	resp := new(QueryRefundResponse)
@@ -245,6 +250,161 @@ func (m *MerchantInfo) QueryRefund(req QueryRefundRequest) (*QueryRefundResponse
 	return resp, nil
 }
 
+// https://pay.weixin.qq.com/wiki/doc/api/app/app.php?chapter=9_6&index=8
 const urlDownloadBill = "https://api.mch.weixin.qq.com/pay/downloadbill"
 
-// func (m *MerchantInfo) DownloadBill(req DownloadBillRequest) error {}
+func (m *MerchantInfo) DownloadBill(req *DownloadBillRequest) ([]*Bill, *BillInTotal, error) {
+	if time.Since(time.Time(req.BillData)) > time.Hour*24*92 {
+		return nil, nil, wx.ParameterError{"billDate"}
+	}
+	body, e := m.prepareRequest(req)
+	if e != nil {
+		return nil, nil, e
+	}
+	if verbose {
+		log.Println("request downloading bill: ", string(body))
+	}
+
+	resp, e := http.Post(urlDownloadBill, "application/xml", bytes.NewBuffer(body))
+	if e != nil {
+		return nil, nil, e
+	}
+	defer resp.Body.Close()
+	if verbose {
+		log.Println("response: ", resp)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, nil, wx.HttpError{
+			State: resp.StatusCode,
+		}
+	}
+
+	return parseBillFile(resp.Body, req.BillType)
+}
+
+func parseBillFile(r io.Reader, t BillType) ([]*Bill, *BillInTotal, error) {
+	bills := make([]*Bill, 0)
+
+	s := bufio.NewScanner(r)
+	s.Scan() // drop title
+	for s.Scan() {
+		line := s.Text()
+		if len(line) == 0 || line[0] != '`' {
+			break // second title
+		}
+		fs := strings.Split(line[1:], ",`") // trim leading "`"
+		tails := fs[len(fs)-4 : len(fs)]    // trailling common fields
+		b := &Bill{
+			Time:          parseBillTime(fs[0]),
+			AppID:         fs[1],
+			MerchantID:    fs[2],
+			SubMerchantID: fs[3],
+			DeviceInfo:    fs[4],
+			TransactionID: fs[5],
+			TradeNo:       fs[6],
+			OpenID:        fs[7],
+			TradeType:     TradeType(fs[8]),
+			TradeState:    TradeState(fs[9]),
+			BankType:      BankType(fs[10]),
+			FeeType:       FeeType(fs[11]),
+			TotalFee:      parseFee(fs[12]),
+			CouponFee:     parseFee(fs[13]),
+			ProductName:   tails[0],
+			Attach:        tails[1],
+			ServiceCharge: parseFee(tails[2]),
+			ChargeRate:    tails[3],
+		}
+
+		switch t {
+		case BillAll:
+			b.RefundID = fs[14]
+			b.RefundNo = fs[15]
+			b.RefundFee = parseFee(fs[16])
+			b.CouponRefundFee = parseFee(fs[17])
+			b.RefundType = fs[18]
+			b.RefundStatus = RefundStatus(fs[19])
+		case BillSuccess:
+		case BillRefund:
+			b.RefundApplyTime = parseBillTime(fs[14])
+			b.RefundSucceedTime = parseBillTime(fs[15])
+			b.RefundID = fs[16]
+			b.RefundNo = fs[17]
+			b.RefundFee = parseFee(fs[18])
+			b.CouponRefundFee = parseFee(fs[19])
+			b.RefundType = fs[20]
+			b.RefundStatus = RefundStatus(fs[21])
+		}
+		bills = append(bills, b)
+	}
+	if e := s.Err(); e != nil {
+		return nil, nil, e
+	}
+
+	s.Scan()
+	statics := s.Text()
+	fs := strings.Split(statics[1:], ",`")
+	total := &BillInTotal{
+		Transactions:    parseInt(fs[0]),
+		TradeFee:        parseFee(fs[1]),
+		RefundFee:       parseFee(fs[2]),
+		CouponRefundFee: parseFee(fs[3]),
+		Charge:          parseFee(fs[4]),
+	}
+
+	return bills, total, nil
+}
+
+func parseBillTime(s string) time.Time {
+	t, e := time.Parse("2096-01-0215：04：05", s)
+	if e != nil {
+		return time.Time{}
+	}
+	return t
+}
+
+func parseFee(s string) Fee {
+	if s == "0" {
+		return 0
+	}
+
+	if !strings.ContainsRune(s, '.') {
+		f, _ := strconv.ParseInt(s, 10, 64)
+		return Fee(f * 100) // to cents
+	}
+
+	ss := strings.Split(s, ".")
+	if len(ss) > 2 {
+		panic("invalid fee type to parse")
+	}
+	f, _ := strconv.ParseInt(ss[0], 10, 64)
+	f *= 100 // to cents
+
+	if len(ss[1]) > 2 {
+		panic("invalid fee type to parse")
+	}
+
+	if len(ss[1]) == 1 {
+		d, _ := strconv.ParseInt(ss[1], 10, 64)
+		f += d * 10
+	}
+	if len(ss[1]) == 2 {
+		d, _ := strconv.ParseInt(ss[1], 10, 64)
+		f += d
+	}
+
+	return Fee(f)
+}
+
+func parseInt(s string) int {
+	i, _ := strconv.ParseInt(s, 10, 64)
+	return int(i)
+}
+
+// 当日所有订单
+// 交易时间,公众账号ID,商户号,子商户号,设备号,微信订单号,商户订单号,用户标识,交易类型,交易状态,付款银行,货币种类,总金额,代金券或立减优惠金额,微信退款单号,商户退款单号,退款金额,代金券或立减优惠退款金额，退款类型，退款状态,商品名称,商户数据包,手续费,费率
+
+// 当日成功支付的订单
+// 交易时间,公众账号ID,商户号,子商户号,设备号,微信订单号,商户订单号,用户标识,交易类型,交易状态,付款银行,货币种类,总金额,代金券或立减优惠金额,商品名称,商户数据包,手续费,费率
+
+// 当日退款的订单
+// 交易时间,公众账号ID,商户号,子商户号,设备号,微信订单号,商户订单号,用户标识,交易类型,交易状态,付款银行,货币种类,总金额,代金券或立减优惠金额,退款申请时间,退款成功时间,微信退款单号,商户退款单号,退款金额,代金券或立减优惠退款金额,退款类型,退款状态,商品名称,商户数据包,手续费,费率

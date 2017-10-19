@@ -75,23 +75,23 @@ func (cd *CData) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	return d.DecodeElement(cd.Data, &start)
 }
 
-type Fee int
+type Fee int64
 
 func (f Fee) String() string {
 	if f == 0 {
 		return ""
 	}
-	return strconv.Itoa(int(f))
+	return strconv.FormatInt(int64(f), 10)
 }
 
 func (f *Fee) Unstring(s string) error {
-	i, _ := strconv.Atoi(s)
+	i, _ := strconv.ParseInt(s, 10, 64)
 	*f = Fee(i)
 	return nil
 }
 
 func (f *Fee) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
-	return d.DecodeElement((*int)(f), &start)
+	return d.DecodeElement((*int64)(f), &start)
 }
 
 type Time time.Time
@@ -116,8 +116,7 @@ func (t Time) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	if time.Time(t).IsZero() {
 		return nil
 	}
-	e.EncodeElement(time.Time(t).Format("20060102150405"), start)
-	return nil
+	return e.EncodeElement(time.Time(t).Format("20060102150405"), start)
 }
 
 func (t *Time) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
@@ -125,11 +124,49 @@ func (t *Time) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	if e := d.DecodeElement(&s, &start); e != nil {
 		return e
 	}
-	if tt, e := time.Parse("20060102150405", s); e != nil {
+	tt, e := time.Parse("20060102150405", s)
+	if e != nil {
 		return e
-	} else {
-		*t = Time(tt)
 	}
+	*t = Time(tt)
+	return nil
+}
+
+type Date time.Time
+
+func (d Date) String() string {
+	if time.Time(d).IsZero() {
+		return ""
+	}
+	return time.Time(d).Format("20060102")
+}
+
+func (d *Date) Unstring(s string) error {
+	t, e := time.Parse("20060102", s)
+	if e != nil {
+		return e
+	}
+	*d = Date(t)
+	return nil
+}
+
+func (d Date) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	if time.Time(d).IsZero() {
+		return nil
+	}
+	return e.EncodeElement(time.Time(d).Format("20060102"), start)
+}
+
+func (d *Date) UnmarshalXML(dc *xml.Decoder, start xml.StartElement) error {
+	var s string
+	if e := dc.DecodeElement(&s, &start); e != nil {
+		return e
+	}
+	t, e := time.Parse("20060102", s)
+	if e != nil {
+		return e
+	}
+	*d = Date(t)
 	return nil
 }
 
@@ -384,7 +421,7 @@ type QueryRefundResponse struct {
 
 type DownloadBillRequest struct {
 	DeviceInfo string `xml:"device_info,omitempty"`
-	BillData   string `xml:"bill_data,omitempty"`
+	BillData   Date   `xml:"bill_data,omitempty"`
 	BillType   `xml:"bill_type,omitempty"`
 	TarType    `xml:"tar_type,omitempty"`
 }
@@ -396,6 +433,8 @@ type NoticeResult struct {
 
 type PayNotice struct {
 	TradeState
+	ResultCode     CData     `xml:"result_code,omitempty"`
+	ResultMessage  CData     `xml:"result_msg,omitempty"`
 	DeviceInfo     CData     `xml:"device_info,omitempty"`  // 设备号
 	OpenID         CData     `xml:"openid,omitempty"`       // 用户标识
 	IsSubscribe    CData     `xml:"is_subscribe,omitempty"` // 是否关注公众账号
@@ -419,6 +458,8 @@ type PayNotice struct {
 }
 
 type RefundNotice struct {
+	ResultCode            CData        `xml:"result_code,omitempty"`
+	ResultMessage         CData        `xml:"result_msg,omitempty"`
 	TransactionID         CData        `xml:"transaction_id,omitempty"`        // 微信订单号
 	TradeNo               CData        `xml:"out_trade_no,omitempty"`          // 商户订单号
 	RefundNo              CData        `xml:"out_refund_no,omitempty"`         // 商户退款单号
@@ -432,4 +473,47 @@ type RefundNotice struct {
 	RefundReceiverAccount CData        `xml:"refund_recv_account,omitempty"` // 退款入账账户
 	RefundAccount         CData        `xml:"refund_account,omitempty"`      // 退款资金来源
 	RefundRequestSource   string       `xml:"refund_request_source,omitempty"`
+}
+
+type Bill struct {
+	// common fields for all type of bills
+	Time          time.Time
+	AppID         string
+	MerchantID    string
+	SubMerchantID string
+	DeviceInfo    string
+	TransactionID string
+	TradeNo       string
+	OpenID        string // 用户标识?
+	TradeType
+	TradeState
+	BankType
+	FeeType
+	TotalFee  Fee
+	CouponFee Fee
+
+	ProductName   string
+	Attach        string // 用户数据包
+	ServiceCharge Fee    // 手续费
+	ChargeRate    string // 费率
+
+	// all bills for refund bills
+	RefundID        string
+	RefundNo        string
+	RefundFee       Fee
+	CouponRefundFee Fee
+	RefundType      string
+	RefundStatus
+
+	// refund bills
+	RefundApplyTime   time.Time
+	RefundSucceedTime time.Time
+}
+
+type BillInTotal struct {
+	Transactions    int
+	TradeFee        Fee
+	RefundFee       Fee
+	CouponRefundFee Fee
+	Charge          Fee
 }

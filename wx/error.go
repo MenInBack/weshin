@@ -73,9 +73,10 @@ func (e ParameterError) Error() string {
 }
 
 type WeshinError struct {
+	Code   string
 	Detail string
 }
 
 func (e WeshinError) Error() string {
-	return fmt.Sprint("weshin error: ", e.Detail)
+	return fmt.Sprint("weshin error: [", e.Code, "]", e.Detail)
 }

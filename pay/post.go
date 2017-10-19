@@ -307,7 +307,7 @@ func checkReturnCode(fields map[string]string) error {
 	if rc, ok := fields["return_code"]; !ok {
 		return wx.WeshinError{Detail: "response without return code"}
 	} else if rc != "SUCCESS" {
-		return wx.WeshinError{Detail: fmt.Sprintf("pay request failed: [%s]%s", rc, fields["return_msg"])}
+		return wx.WeshinError{Code: rc, Detail: fields["return_msg"]}
 	}
 
 	return nil
@@ -372,7 +372,7 @@ func checkResultCode(fields map[string]string) error {
 	if rc, ok := fields["result_code"]; !ok {
 		return wx.WeshinError{Detail: "response without result code"}
 	} else if rc != "SUCCESS" {
-		return wx.WeshinError{Detail: fmt.Sprintf("pay request failed: [%s]%s", fields["err_code"], fields["err_code_des"])}
+		return wx.WeshinError{Code: fields["err_code"], Detail: fields["err_code_des"]}
 	}
 	return nil
 }
